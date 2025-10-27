@@ -1,0 +1,50 @@
+{
+  "name": "stableflow-ai-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for StableFlow AI API - Cross-chain token swap solution",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "clean": "rm -rf dist node_modules",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "prepublishOnly": "npm run clean && npm install && npm run build"
+  },
+  "keywords": [
+    "stableflow",
+    "ai",
+    "sdk",
+    "typescript",
+    "swap",
+    "cross-chain",
+    "defi",
+    "blockchain"
+  ],
+  "author": "StableFlow AI",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.2"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "form-data": "^4.0.0"
+  }
+}
+

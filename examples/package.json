@@ -1,0 +1,17 @@
+{
+  "name": "stableflow-ai-sdk-examples",
+  "version": "1.0.0",
+  "description": "Example usage of StableFlow AI SDK",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx basic-swap-flow.ts"
+  },
+  "dependencies": {
+    "stableflow-ai-sdk": "file:.."
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
