@@ -298,7 +298,7 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
             const body = getRequestBody(options);
             const headers = await getHeaders(config, options, formData);
 
-            // 详细请求日志
+            // Detailed request logging
             console.log('\n🔵 ========== API Request ==========');
             console.log('Method:', options.method);
             console.log('URL:', url);
@@ -324,7 +324,7 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
                     body: responseHeader ?? responseBody,
                 };
 
-                // 详细响应日志
+                // Detailed response logging
                 console.log('\n🟢 ========== API Response ==========');
                 console.log('Status:', response.status, response.statusText);
                 console.log('Response Headers:', JSON.stringify(response.headers, null, 2));
@@ -336,7 +336,7 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
                 resolve(result.body);
             }
         } catch (error) {
-            // 详细错误日志
+            // Detailed error logging
             console.log('\n🔴 ========== API Error ==========');
             console.log('Error:', error);
             if (error instanceof ApiError) {

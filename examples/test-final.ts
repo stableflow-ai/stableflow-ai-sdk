@@ -1,4 +1,4 @@
-// 最终测试：验证 API 完全不需要 JWT token
+// Final test: Verify API works without JWT token
 import { SFA, QuoteRequest } from "stableflow-ai-sdk";
 
 async function test() {

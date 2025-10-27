@@ -1,4 +1,3 @@
-// 使用包名导入（推荐方式）
 // Use package name import (recommended)
 import {
 	SFA,
@@ -50,7 +49,7 @@ async function demonstrateSwapFlow() {
 			refundType: QuoteRequest.refundType.ORIGIN_CHAIN,
 			recipient: "13QkxhNMrTPxoCkRdYdJ65tFuwXPhL5gLS2Z5Nr6gjRK", // Valid Solana Address
 			recipientType: QuoteRequest.recipientType.DESTINATION_CHAIN,
-			deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24小时后过期
+			deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Expires in 24 hours
 			referral: "your-referral-id",
 			quoteWaitingTimeMs: 3000,
 		};
