@@ -1,25 +1,20 @@
-// 测试不使用任何 Token 的情况
-// Test without any token
-
+// 测试带 JWT token 的 API
 import { SFA, OpenAPI, QuoteRequest } from "stableflow-ai-sdk";
 
-// 配置 API 地址（注意：需要包含 /api）
-OpenAPI.BASE = "https://api.stableflow.ai";
+// 配置 JWT Token
+OpenAPI.TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjQxNTA2MjUsImlhdCI6MTc2MTU1ODYyNSwidXNlcl9pZCI6Mjl9.LYgx-jtL4YpeuWctzSGpk_bZQv8wIeMbbLiTzrVO9ZE";
 
-// 🔥 完全不设置 TOKEN（注释掉）
-// OpenAPI.TOKEN = undefined;  // 默认就是 undefined
-
-async function testWithoutToken() {
-	console.log("🧪 Testing API without any JWT token\n");
+async function test() {
+	console.log("🧪 Testing API with JWT Token\n");
 
 	try {
-		// 1. 测试获取代币列表
-		console.log("1️⃣ Testing getTokens() without token...");
+		// 1. Get tokens
+		console.log("1️⃣ Testing getTokens()...");
 		const tokens = await SFA.getTokens();
 		console.log(`✅ Success! Found ${tokens.length} tokens\n`);
 
-		// 2. 测试获取报价（不设置 token）
-		console.log("2️⃣ Testing getQuote() without token...");
+		// 2. Get quote
+		console.log("2️⃣ Testing getQuote()...");
 		const quoteRequest: QuoteRequest = {
 			dry: true,
 			swapType: QuoteRequest.swapType.EXACT_INPUT,
@@ -34,21 +29,27 @@ async function testWithoutToken() {
 			refundType: QuoteRequest.refundType.ORIGIN_CHAIN,
 			recipient: "13QkxhNMrTPxoCkRdYdJ65tFuwXPhL5gLS2Z5Nr6gjRK",
 			recipientType: QuoteRequest.recipientType.DESTINATION_CHAIN,
-			deadline: "2025-12-31T23:59:59Z",
+			deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
 			quoteWaitingTimeMs: 3000,
 		};
 
 		const quote = await SFA.getQuote(quoteRequest);
-		console.log("✅ Quote received successfully!");
-		console.log("Quote details:", JSON.stringify(quote, null, 2));
+		console.log(`✅ Success!`);
+		console.log(`   Input: ${quote.quote?.amountInFormatted} USDC`);
+		console.log(`   Output: ${quote.quote?.amountOutFormatted} USDC`);
+		console.log(`   Estimate: ${quote.quote?.timeEstimate} seconds`);
+
+		console.log("\n🎉 All tests passed with JWT token!\n");
 	} catch (error: any) {
 		console.error("❌ Error:", error.message);
 		if (error.status) {
 			console.error("Status:", error.status);
+		}
+		if (error.body) {
 			console.error("Body:", JSON.stringify(error.body, null, 2));
 		}
 	}
 }
 
-testWithoutToken();
+test();
 

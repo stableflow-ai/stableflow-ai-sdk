@@ -9,15 +9,14 @@ import {
 } from "stableflow-ai-sdk";
 
 // Configure the SDK
-// Note: The default BASE is already set to "https://api.stableflow.ai/api"
+// Note: The default BASE is already set to "https://api.stableflow.ai"
 // You can override it if needed:
-// OpenAPI.BASE = "https://your-custom-api.com/api";
+// OpenAPI.BASE = "https://your-custom-api.com";
 
-// JWT Token Configuration (OPTIONAL)
-// This API does not require authentication for basic operations
-// If your deployment requires authentication, set the token here:
-// const JWT_TOKEN = "your-real-jwt-token-here";
-// OpenAPI.TOKEN = JWT_TOKEN;
+// JWT Token Configuration (REQUIRED)
+// Replace with your valid JWT token
+const JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjQxNTA2MjUsImlhdCI6MTc2MTU1ODYyNSwidXNlcl9pZCI6Mjl9.LYgx-jtL4YpeuWctzSGpk_bZQv8wIeMbbLiTzrVO9ZE";
+OpenAPI.TOKEN = JWT_TOKEN;
 
 // Alternatively, you can use a dynamic token provider for automatic token refresh:
 // OpenAPI.TOKEN = async () => {
@@ -82,21 +81,8 @@ async function demonstrateSwapFlow() {
 			console.log("Current status:", status);
 		}
 
-		// 5. Example of handling JWT token refresh/expiration
-		// In a real implementation, you would refresh the token when needed
-		console.log("\nExample of refreshing JWT token:");
-		OpenAPI.TOKEN = async () => {
-			// This function would typically make a request to your auth server
-			// to get a fresh JWT token when needed
-			console.log("Token refresh function called");
-			return "NEW_REFRESHED_JWT_TOKEN";
-		};
-
-		// Make another API call with the dynamic token provider
-		console.log("\nMaking API call with dynamic token provider...");
 		if (quote.quote && quote.quote.depositAddress) {
 			await SFA.getExecutionStatus(quote.quote.depositAddress);
-			console.log("Successfully used dynamic token provider");
 		}
 	} catch (error) {
 		// Check for authentication errors
