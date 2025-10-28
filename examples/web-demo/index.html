@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StableFlow - Cross-Chain Bridge</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>🌉 StableFlow</h1>
+                <p class="subtitle">Cross-Chain Bridge</p>
+            </div>
+            <div class="wallet-section">
+                <button id="connectWallet" class="btn btn-primary">
+                    Connect Wallet
+                </button>
+                <div id="walletInfo" class="wallet-info hidden">
+                    <span id="walletAddress"></span>
+                    <button id="disconnectWallet" class="btn btn-secondary">Disconnect</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Bridge Form -->
+            <div class="bridge-card">
+                <h2>Bridge Your Assets</h2>
+                
+                <!-- From Section -->
+                <div class="section">
+                    <label class="label">From</label>
+                    <select id="fromNetwork" class="network-select">
+                        <option value="">Select Network...</option>
+                    </select>
+                    <input 
+                        type="number" 
+                        id="amount" 
+                        class="amount-input" 
+                        placeholder="0.0"
+                        step="0.000001"
+                        min="0"
+                    >
+                    <div class="token-info" id="fromTokenInfo">Token: USDT</div>
+                </div>
+
+                <!-- Swap Button -->
+                <div class="swap-button-container">
+                    <button class="swap-button" id="swapDirection">
+                        ⇅
+                    </button>
+                </div>
+
+                <!-- To Section -->
+                <div class="section">
+                    <label class="label">To</label>
+                    <select id="toNetwork" class="network-select">
+                        <option value="">Select Network...</option>
+                    </select>
+                    <div class="estimated-output" id="estimatedOutput">
+                        You will receive: --
+                    </div>
+                    <div class="token-info" id="toTokenInfo">Token: USDT</div>
+                </div>
+
+                <!-- Quote Details -->
+                <div id="quoteDetails" class="quote-details hidden">
+                    <div class="quote-row">
+                        <span>Fee:</span>
+                        <span id="quoteFee">--</span>
+                    </div>
+                    <div class="quote-row">
+                        <span>Estimated Time:</span>
+                        <span id="quoteTime">--</span>
+                    </div>
+                    <div class="quote-row">
+                        <span>Minimum Received:</span>
+                        <span id="quoteMinOut">--</span>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button id="getQuote" class="btn btn-large btn-primary" disabled>
+                    Connect Wallet to Continue
+                </button>
+
+                <!-- Status Messages -->
+                <div id="statusMessage" class="status-message hidden"></div>
+                <div id="errorMessage" class="error-message hidden"></div>
+            </div>
+
+            <!-- Transaction History -->
+            <div class="transaction-history" id="transactionHistory">
+                <h3>Recent Transactions</h3>
+                <div id="transactionList" class="transaction-list">
+                    <p class="empty-state">No transactions yet</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div class="spinner"></div>
+            <p id="loadingMessage">Loading...</p>
+        </div>
+    </div>
+
+    <script type="module" src="./app.ts"></script>
+</body>
+</html>
+

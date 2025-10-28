@@ -5,7 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx basic-swap-flow.ts"
+    "start": "tsx basic-swap-flow.ts",
+    "demo": "tsx cross-chain-bridge-demo.ts",
+    "bridge": "tsx cross-chain-bridge-demo.ts"
   },
   "dependencies": {
     "stableflow-ai-sdk": "file:.."

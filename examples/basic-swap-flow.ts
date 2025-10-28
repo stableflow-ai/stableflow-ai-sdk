@@ -14,7 +14,7 @@ import {
 
 // JWT Token Configuration (REQUIRED)
 // Replace with your valid JWT token
-const JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjQxNTA2MjUsImlhdCI6MTc2MTU1ODYyNSwidXNlcl9pZCI6Mjl9.LYgx-jtL4YpeuWctzSGpk_bZQv8wIeMbbLiTzrVO9ZE";
+const JWT_TOKEN = "";
 OpenAPI.TOKEN = JWT_TOKEN;
 
 // Alternatively, you can use a dynamic token provider for automatic token refresh:

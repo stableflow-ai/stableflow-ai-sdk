@@ -142,6 +142,44 @@ The SDK provides full TypeScript type definitions, including:
 
 ## Examples
 
+### 🌐 Web Application Demo (NEW!)
+
+**Try our interactive web app with real wallet connection:**
+
+```bash
+cd examples/web-demo
+npm install
+npm run dev
+```
+
+Features:
+- 🔗 **Wallet Connection** - Connect MetaMask or compatible wallets
+- 🎨 **Modern UI** - Beautiful dark theme with gradients
+- 💱 **21+ Networks** - Ethereum, Arbitrum, Solana, Base, and more
+- 💎 **110+ Tokens** - USDT, USDC, ETH, and many others
+- 💰 **Real-Time Quotes** - Get accurate fee and time estimates
+- 🚀 **Execute Transactions** - Bridge tokens across chains
+- 📊 **Transaction History** - Track your bridging activity
+
+**Tech Stack**: TypeScript, Vite, ethers.js, StableFlow SDK
+
+See [examples/web-demo/README.md](examples/web-demo/README.md) for full documentation.
+
+### 💻 Command Line Demo
+
+Interactive CLI tool for testing SDK functionality:
+
+```bash
+cd examples
+npm install
+export STABLEFLOW_JWT_TOKEN='your-jwt-token'
+npm run demo
+```
+
+See [examples/BRIDGE_DEMO_GUIDE.md](examples/BRIDGE_DEMO_GUIDE.md) for detailed instructions.
+
+### Other Examples
+
 Check the `examples` directory for more examples:
 
 ```bash
