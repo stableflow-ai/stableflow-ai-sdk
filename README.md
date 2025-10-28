@@ -82,31 +82,30 @@ const tokens = await SFA.getTokens();
 
 ## Authentication
 
-The StableFlow AI API requires JWT authentication for most endpoints.
+The StableFlow AI API requires JWT authentication for all endpoints.
 
-### Static Token (Required)
+### Getting Your JWT Token
+
+To use the SDK, you need to apply for a JWT token:
+
+1. Visit [https://app.stableflow.ai/apply](https://app.stableflow.ai/apply)
+2. Submit an application form for API access
+3. Once approved, you will receive your JWT token
+
+### Using Your Token
 
 ```typescript
-// Set a static JWT - required for authenticated endpoints
-OpenAPI.TOKEN = 'your-JSON-Web-Token';
-```
-
-### Dynamic Token Provider (for token refresh)
-
-```typescript
-// Set a function that returns a fresh token when needed
-OpenAPI.TOKEN = async () => {
-  // Get a fresh token from your authentication system
-  return 'FRESH_JWT';
-};
+// Set your JWT token
+OpenAPI.TOKEN = 'your-JSON-Web-Token-here';
 ```
 
 ### Protected Endpoints
 
-The following endpoints require JWT authentication:
-- `SFA.getQuote()`
-- `SFA.submitDepositTx()`
-- `SFA.getExecutionStatus()`
+All API endpoints require JWT authentication:
+- `SFA.getTokens()` - Get supported tokens
+- `SFA.getQuote()` - Get swap quote
+- `SFA.submitDepositTx()` - Submit transaction
+- `SFA.getExecutionStatus()` - Check transaction status
 
 ## Error Handling
 
@@ -155,38 +154,15 @@ npm run dev
 Features:
 - 🔗 **Wallet Connection** - Connect MetaMask or compatible wallets
 - 🎨 **Modern UI** - Beautiful dark theme with gradients
-- 💱 **21+ Networks** - Ethereum, Arbitrum, Solana, Base, and more
-- 💎 **110+ Tokens** - USDT, USDC, ETH, and many others
-- 💰 **Real-Time Quotes** - Get accurate fee and time estimates
-- 🚀 **Execute Transactions** - Bridge tokens across chains
+- 🌐 **6 Major Networks** - Ethereum, Arbitrum, Polygon, BNB Chain, Optimism, Avalanche
+- 💰 **USDT Bridging** - Seamless USDT transfers across networks
+- 💵 **Real-Time Quotes** - Get accurate fee and time estimates
+- 🚀 **Execute Transactions** - Bridge USDT across chains with one click
 - 📊 **Transaction History** - Track your bridging activity
 
 **Tech Stack**: TypeScript, Vite, ethers.js, StableFlow SDK
 
 See [examples/web-demo/README.md](examples/web-demo/README.md) for full documentation.
-
-### 💻 Command Line Demo
-
-Interactive CLI tool for testing SDK functionality:
-
-```bash
-cd examples
-npm install
-export STABLEFLOW_JWT_TOKEN='your-jwt-token'
-npm run demo
-```
-
-See [examples/BRIDGE_DEMO_GUIDE.md](examples/BRIDGE_DEMO_GUIDE.md) for detailed instructions.
-
-### Other Examples
-
-Check the `examples` directory for more examples:
-
-```bash
-cd examples
-npm install
-npm start
-```
 
 ## Development
 

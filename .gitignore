@@ -5,3 +5,6 @@ dist/
 .env
 .env.local
 
+# Internal documentation
+PUBLISH.md
+
