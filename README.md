@@ -1,15 +1,13 @@
 # StableFlow AI SDK - TypeScript
 
-一个强大的 TypeScript SDK，用于无缝跨链代币交换。基于类型安全设计，该 SDK 使开发人员能够轻松地将跨链交换功能集成到他们的应用程序中，只需最少的设置。
-
 A powerful TypeScript SDK for seamless cross-chain token swaps. Built with type safety in mind, this SDK enables developers to easily integrate cross-chain swapping functionality into their applications with minimal setup.
 
-## 前置要求 | Prerequisites
+## Prerequisites
 
 - Node.js >= 16
 - npm / yarn / pnpm
 
-## 安装 | Installation
+## Installation
 
 ```bash
 # Using npm
@@ -22,7 +20,7 @@ yarn add stableflow-ai-sdk
 pnpm add stableflow-ai-sdk
 ```
 
-## 快速开始 | Quick Start
+## Quick Start
 
 ```typescript
 import { OpenAPI, QuoteRequest, SFA } from 'stableflow-ai-sdk';
@@ -53,21 +51,21 @@ const quoteRequest: QuoteRequest = {
 const quote = await SFA.getQuote(quoteRequest);
 ```
 
-## API 方法 | API Methods
+## API Methods
 
-### 获取报价 | Get Quote
+### Get Quote
 
 ```typescript
 const quote = await SFA.getQuote(quoteRequest);
 ```
 
-### 获取执行状态 | Get Execution Status
+### Get Execution Status
 
 ```typescript
 const status = await SFA.getExecutionStatus(depositAddress);
 ```
 
-### 提交存款交易 | Submit Deposit Transaction
+### Submit Deposit Transaction
 
 ```typescript
 const result = await SFA.submitDepositTx({
@@ -76,26 +74,24 @@ const result = await SFA.submitDepositTx({
 });
 ```
 
-### 获取支持的代币 | Get Supported Tokens
+### Get Supported Tokens
 
 ```typescript
 const tokens = await SFA.getTokens();
 ```
 
-## 认证 | Authentication
-
-StableFlow AI API 需要 JWT 认证才能使用大部分端点。
+## Authentication
 
 The StableFlow AI API requires JWT authentication for most endpoints.
 
-### 静态令牌 | Static Token (Required)
+### Static Token (Required)
 
 ```typescript
 // Set a static JWT - required for authenticated endpoints
 OpenAPI.TOKEN = 'your-JSON-Web-Token';
 ```
 
-### 动态令牌提供者 | Dynamic Token Provider (for token refresh)
+### Dynamic Token Provider (for token refresh)
 
 ```typescript
 // Set a function that returns a fresh token when needed
@@ -105,16 +101,14 @@ OpenAPI.TOKEN = async () => {
 };
 ```
 
-### 受保护的端点 | Protected Endpoints
+### Protected Endpoints
 
-以下端点需要 JWT 认证 | The following endpoints require JWT authentication:
+The following endpoints require JWT authentication:
 - `SFA.getQuote()`
 - `SFA.submitDepositTx()`
 - `SFA.getExecutionStatus()`
 
-## 错误处理 | Error Handling
-
-SDK 抛出可捕获和处理的类型化错误：
+## Error Handling
 
 The SDK throws typed errors that you can catch and handle:
 
@@ -135,22 +129,18 @@ try {
 }
 ```
 
-## 类型定义 | Type Definitions
-
-SDK 提供完整的 TypeScript 类型定义，包括：
+## Type Definitions
 
 The SDK provides full TypeScript type definitions, including:
 
-- `QuoteRequest` - 请求报价的参数 | Parameters for requesting a quote
-- `QuoteResponse` - 报价响应数据 | Quote response data
-- `GetExecutionStatusResponse` - 执行状态响应 | Execution status response
-- `SubmitDepositTxRequest` - 提交存款交易请求 | Submit deposit transaction request
-- `SubmitDepositTxResponse` - 提交存款交易响应 | Submit deposit transaction response
-- `TokenResponse` - 代币信息 | Token information
+- `QuoteRequest` - Parameters for requesting a quote
+- `QuoteResponse` - Quote response data
+- `GetExecutionStatusResponse` - Execution status response
+- `SubmitDepositTxRequest` - Submit deposit transaction request
+- `SubmitDepositTxResponse` - Submit deposit transaction response
+- `TokenResponse` - Token information
 
-## 示例 | Examples
-
-查看 `examples` 目录获取更多示例：
+## Examples
 
 Check the `examples` directory for more examples:
 
@@ -160,9 +150,9 @@ npm install
 npm start
 ```
 
-## 开发 | Development
+## Development
 
-开发者命令 | Developer commands:
+Developer commands:
 
 ```bash
 # Install dependencies
@@ -178,25 +168,23 @@ npm run clean
 npm run dev
 ```
 
-## 许可证 | License
+## License
 
 MIT
 
-## 支持 | Support
-
-如遇到问题或需要帮助，请：
+## Support
 
 For issues or support:
 
-- 提交 Issue | Open an issue on GitHub
-- 查看文档 | Check the documentation
-- 联系我们 | Contact our support team
+- Open an issue on GitHub
+- Check the documentation
+- Contact our support team
 
-## 更新日志 | Changelog
+## Changelog
 
 ### v1.0.0
-- 初始版本发布 | Initial release
-- 支持跨链代币交换 | Support for cross-chain token swaps
-- JWT 认证支持 | JWT authentication support
-- 完整的 TypeScript 类型定义 | Full TypeScript type definitions
+- Initial release
+- Support for cross-chain token swaps
+- JWT authentication support
+- Full TypeScript type definitions
 
