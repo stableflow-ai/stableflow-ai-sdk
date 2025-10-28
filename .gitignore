@@ -5,6 +5,9 @@ dist/
 .env
 .env.local
 
+# npm package artifacts
+*.tgz
+
 # Internal documentation
 PUBLISH.md
 
