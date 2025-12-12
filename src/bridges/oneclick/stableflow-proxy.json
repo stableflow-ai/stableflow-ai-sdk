@@ -1,0 +1,295 @@
+{
+  "version": "0.1.0",
+  "name": "stableflow",
+  "instructions": [
+    {
+      "name": "initialize",
+      "docs": [
+        "initializing the whole protocol,"
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stableFlowState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "transfer",
+      "accounts": [
+        {
+          "name": "stableFlowState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "toUser",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "transferAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "setOwner",
+      "accounts": [
+        {
+          "name": "newAccountId",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stableFlowState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "start",
+      "accounts": [
+        {
+          "name": "stableFlowState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "pause",
+      "accounts": [
+        {
+          "name": "stableFlowState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "shutdown",
+      "accounts": [
+        {
+          "name": "stableFlowState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "StableFlowState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "StableFlowStatus"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "StableFlowStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "NotInitial"
+          },
+          {
+            "name": "Running"
+          },
+          {
+            "name": "Paused"
+          },
+          {
+            "name": "Shutdown"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "TransferEvent",
+      "fields": [
+        {
+          "name": "from",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "to",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "tokenId",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidProgramId",
+      "msg": "InvalidProgramId"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidProgramStatus",
+      "msg": "InvalidProgramStatus"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidStatus"
+    },
+    {
+      "code": 6003,
+      "name": "UnexpectedAccount",
+      "msg": "UnexpectedAccount"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidToken",
+      "msg": "InvalidToken"
+    },
+    {
+      "code": 6005,
+      "name": "NumberCastError",
+      "msg": "NumberCastError"
+    },
+    {
+      "code": 6006,
+      "name": "NotAllowed",
+      "msg": "NotAllowed"
+    },
+    {
+      "code": 6007,
+      "name": "HadShutdown",
+      "msg": "HadShutdown"
+    },
+    {
+      "code": 6008,
+      "name": "PauseOrShutdown",
+      "msg": "PauseOrShutdown"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidUser",
+      "msg": "InvalidUser"
+    }
+  ]
+}

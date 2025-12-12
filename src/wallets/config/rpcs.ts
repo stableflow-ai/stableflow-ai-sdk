@@ -1,0 +1,15 @@
+export const chainsRpcUrls: Record<string, string> = {
+  "Ethereum": "https://eth.merkle.io",
+  "Arbitrum": "https://arb1.arbitrum.io/rpc",
+  "BNB Chain": "https://56.rpc.thirdweb.com",
+  "Avalanche": "https://api.avax.network/ext/bc/C/rpc",
+  "Base": "https://mainnet.base.org",
+  "Polygon": "https://polygon-rpc.com",
+  "Gnosis": "https://rpc.gnosischain.com",
+  "Optimism": "https://mainnet.optimism.io",
+  "Berachain": "https://rpc.berachain.com",
+  "Tron": "https://api.trongrid.io",
+  "Aptos": "https://api.mainnet.aptoslabs.com/v1",
+  "Solana": "https://mainnet.helius-rpc.com/?api-key=28fc7f18-acf0-48a1-9e06-bd1b6cba1170",
+  "Near": "https://nearinner.deltarpc.com",
+};
