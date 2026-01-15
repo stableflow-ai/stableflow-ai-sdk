@@ -51,6 +51,14 @@ const quotes = await SFA.getAllQuote({
   refundTo: '0x...', // refund address
   amountWei: ethers.parseUnits('100', fromToken!.decimals).toString(),
   slippageTolerance: 0.5, // 0.5%
+  appFees: [
+    {
+      // your fee collection address
+      recipient: "stableflow.near",
+      // Fee rate, as a percentage of the amount. 100 = 1%, 1 = 0.01%
+      fee: 100,
+    },
+  ],
 });
 
 // Select the best quote and send transaction
@@ -107,6 +115,7 @@ const quotes = await SFA.getAllQuote({
   refundTo: string,                     // Refund address on source chain
   amountWei: string,                    // Amount in smallest units (wei/satoshi/etc.)
   slippageTolerance: number,            // Slippage tolerance percentage (e.g., 0.5 for 0.5%)
+  appFees?: { recipient: string; fee: number; }[]; // Custom fee rates
 });
 ```
 

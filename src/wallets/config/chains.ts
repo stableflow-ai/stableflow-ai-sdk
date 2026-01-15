@@ -34,6 +34,7 @@ export const chainTypes: Record<ChainType, { value: ChainType; name: string; col
 const chains: Record<string, ChainConfig> = {
   near: {
     chainName: "Near",
+    blockchain: "near",
     chainIcon: "/chains/near.png",
     chainIconGray: "/chains/near-gray.png",
     chainType: chainTypes.near.value,
@@ -47,6 +48,7 @@ const chains: Record<string, ChainConfig> = {
   },
   sol: {
     chainName: "Solana",
+    blockchain: "sol",
     chainIcon: "/chains/solana.png",
     chainIconGray: "/chains/solana-gray.png",
     chainType: chainTypes.sol.value,
@@ -60,6 +62,7 @@ const chains: Record<string, ChainConfig> = {
   },
   eth: {
     chainName: "Ethereum",
+    blockchain: "eth",
     chainIcon: "/chains/ethereum.png",
     chainIconGray: "/chains/ethereum-gray.png",
     chainType: chainTypes.evm.value,
@@ -74,6 +77,7 @@ const chains: Record<string, ChainConfig> = {
   },
   arb: {
     chainName: "Arbitrum",
+    blockchain: "arb",
     chainIcon: "/chains/arbitrum.png",
     chainIconGray: "/chains/arbitrum-gray.png",
     chainType: chainTypes.evm.value,
@@ -88,6 +92,7 @@ const chains: Record<string, ChainConfig> = {
   },
   bsc: {
     chainName: "BNB Chain",
+    blockchain: "bsc",
     chainIcon: "/chains/bsc.png",
     chainIconGray: "/chains/bsc-gray.png",
     chainType: chainTypes.evm.value,
@@ -102,6 +107,7 @@ const chains: Record<string, ChainConfig> = {
   },
   avax: {
     chainName: "Avalanche",
+    blockchain: "avax",
     chainIcon: "/chains/avalanche.png",
     chainIconGray: "/chains/avalanche-gray.png",
     chainType: chainTypes.evm.value,
@@ -116,6 +122,7 @@ const chains: Record<string, ChainConfig> = {
   },
   base: {
     chainName: "Base",
+    blockchain: "base",
     chainIcon: "/chains/base.png",
     chainIconGray: "/chains/base-gray.png",
     chainType: chainTypes.evm.value,
@@ -130,6 +137,7 @@ const chains: Record<string, ChainConfig> = {
   },
   pol: {
     chainName: "Polygon",
+    blockchain: "pol",
     chainIcon: "/chains/polygon.png",
     chainIconGray: "/chains/polygon-gray.png",
     chainType: chainTypes.evm.value,
@@ -144,6 +152,7 @@ const chains: Record<string, ChainConfig> = {
   },
   gnosis: {
     chainName: "Gnosis",
+    blockchain: "gnosis",
     chainIcon: "/chains/gnosis.png",
     chainIconGray: "/chains/gnosis-gray.png",
     chainType: chainTypes.evm.value,
@@ -158,6 +167,7 @@ const chains: Record<string, ChainConfig> = {
   },
   op: {
     chainName: "Optimism",
+    blockchain: "op",
     chainIcon: "/chains/optimism.png",
     chainIconGray: "/chains/optimism-gray.png",
     chainType: chainTypes.evm.value,
@@ -172,6 +182,7 @@ const chains: Record<string, ChainConfig> = {
   },
   tron: {
     chainName: "Tron",
+    blockchain: "tron",
     chainIcon: "/chains/tron.png",
     chainIconGray: "/chains/tron-gray.png",
     chainType: chainTypes.tron.value,
@@ -185,6 +196,7 @@ const chains: Record<string, ChainConfig> = {
   },
   aptos: {
     chainName: "Aptos",
+    blockchain: "aptos",
     chainIcon: "/chains/aptos.png",
     chainIconGray: "/chains/aptos-gray.png",
     chainType: chainTypes.aptos.value,
@@ -198,6 +210,7 @@ const chains: Record<string, ChainConfig> = {
   },
   bera: {
     chainName: "Berachain",
+    blockchain: "bera",
     chainIcon: "/chains/berachain.png",
     chainIconGray: "/chains/berachain-gray.png",
     chainType: chainTypes.evm.value,
@@ -209,6 +222,21 @@ const chains: Record<string, ChainConfig> = {
       decimals: 18,
     },
     rpcUrl: chainsRpcUrls["Berachain"],
+  },
+  xlayer: {
+    chainName: "X Layer",
+    blockchain: "xlayer",
+    chainIcon: "/chains/xlayer.png",
+    chainIconGray: "/chains/xlayer-gray.png",
+    chainType: chainTypes.evm.value,
+    chainId: 196,
+    blockExplorerUrl: "https://www.oklink.com/xlayer/tx/",
+    primaryColor: "#000000",
+    nativeToken: {
+      symbol: "OKB",
+      decimals: 18,
+    },
+    rpcUrl: chainsRpcUrls["X Layer"],
   },
 };
 

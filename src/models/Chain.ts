@@ -2,6 +2,7 @@ import { ChainType } from "../wallets/config/chains";
 
 export interface ChainConfig {
   chainName: string;
+  blockchain: string;
   chainIcon: string;
   chainIconGray: string;
   chainType: ChainType;

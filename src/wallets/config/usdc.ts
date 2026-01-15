@@ -74,5 +74,12 @@ export const usdcChains: Record<string, TokenConfig> = {
     contractAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     ...chains.sol,
     services: [Service.OneClick, Service.CCTP],
-  }
+  },
+  xlayer: {
+    ...usdc,
+    assetId: "nep245:v2_1.omni.hot.tg:196_2dK9kLNR7Ekq7su8FxNGiUW3djTw",
+    contractAddress: "0x74b7f16337b8972027f6196a17a631ac6de26d22",
+    ...chains.xlayer,
+    services: [Service.OneClick],
+  },
 };
