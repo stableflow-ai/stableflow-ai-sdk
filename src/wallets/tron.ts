@@ -10,18 +10,32 @@ import { Service, type ServiceType } from "../core/Service";
 import { DefaultAddresses } from "./config/addresses";
 import { getRpcUrls } from "./config/rpcs";
 
+const DefaultTronWalletAddress = DefaultAddresses["tron"];
+const customTronWeb = new TronWeb({
+  fullHost: getRpcUrls("tron")[0],
+  headers: {},
+  privateKey: "",
+});
+
 export default class TronWallet {
   private signAndSendTransaction: any;
+  private address: string;
   private tronWeb: any;
 
   constructor(options: any) {
     this.signAndSendTransaction = options.signAndSendTransaction;
-    this.tronWeb = options.tronWeb;
+    this.address = options.address;
+
+    customTronWeb.setAddress(this.address || DefaultTronWalletAddress);
+    this.tronWeb = customTronWeb;
   }
 
   async waitForTronWeb() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (this.tronWeb) {
+        const address = this.tronWeb.defaultAddress.base58 || DefaultTronWalletAddress;
+        customTronWeb.setAddress(address);
+        this.tronWeb = customTronWeb;
         resolve(this.tronWeb);
         return;
       }
@@ -29,6 +43,9 @@ export default class TronWallet {
       const checkTronWeb = () => {
         if ((window as any).tronWeb) {
           this.tronWeb = (window as any).tronWeb;
+          const address = this.tronWeb.defaultAddress.base58 || DefaultTronWalletAddress;
+          customTronWeb.setAddress(address);
+          this.tronWeb = customTronWeb;
           resolve(this.tronWeb);
         } else {
           setTimeout(checkTronWeb, 100);
@@ -38,12 +55,8 @@ export default class TronWallet {
       checkTronWeb();
 
       setTimeout(() => {
-        this.tronWeb = new TronWeb({
-          fullHost: getRpcUrls("tron")[0],
-          headers: {},
-          privateKey: "",
-        });
-        this.tronWeb.setAddress(DefaultAddresses["tron"]);
+        customTronWeb.setAddress(DefaultTronWalletAddress);
+        this.tronWeb = customTronWeb;
         resolve(this.tronWeb);
         console.log(new Error("TronWeb initialization timeout"));
       }, 10000);
@@ -147,10 +160,10 @@ export default class TronWallet {
   }
 
   /**
-   * Estimate gas limit for transfer transaction
-   * @param data Transfer data
-   * @returns Gas limit estimate (bandwidth or energy), gas price, and estimated gas cost
-   */
+    * Estimate gas limit for transfer transaction
+    * @param data Transfer data
+    * @returns Gas limit estimate (bandwidth or energy), gas price, and estimated gas cost
+    */
   async estimateTransferGas(data: {
     originAsset: string;
     depositAddress: string;
@@ -183,15 +196,15 @@ export default class TronWallet {
     // Get current energy price from Tron (in sun)
     // For bandwidth, it's free if you have bandwidth
     // For energy, the price varies, typically 420 sun per energy unit
-    let gasPrice: bigint;
-    try {
-      const chainParameters = await this.tronWeb.trx.getChainParameters();
-      const energyPrice = chainParameters?.find((p: any) => p.key === "getEnergyFee")?.value || 420;
-      gasPrice = BigInt(energyPrice);
-    } catch (error) {
-      // Default energy price: 420 sun per energy unit
-      gasPrice = 420n;
-    }
+    let gasPrice: bigint = 100n;
+    // try {
+    //   const chainParameters = await this.tronWeb.trx.getChainParameters();
+    //   const energyPrice = chainParameters?.find((p: any) => p.key === "getEnergyFee")?.value || 420;
+    //   gasPrice = BigInt(energyPrice);
+    // } catch (error) {
+    //   // Default energy price: 420 sun per energy unit
+    //   gasPrice = 420n;
+    // }
 
     // Calculate estimated gas cost: gasLimit * gasPrice
     const estimateGas = gasLimit * gasPrice;
@@ -216,6 +229,17 @@ export default class TronWallet {
       return false;
     } catch (error) {
       return false;
+    }
+  }
+
+  async getTransactionResult(txHash: string) {
+    await this.waitForTronWeb();
+
+    try {
+      const txInfo = await this.tronWeb.trx.getTransactionInfo(txHash);
+      return txInfo;
+    } catch (error) {
+      return {};
     }
   }
 
@@ -305,14 +329,14 @@ export default class TronWallet {
 
   async getEnergyPrice() {
     await this.waitForTronWeb();
-    let energyFee: any = 280; // Default 280 Sun/Energy
-    try {
-      const params = await this.tronWeb.trx.getChainParameters();
-      energyFee = params.find((p: any) => p.key === "getEnergyFee")?.value || 280;
-      console.log('Energy Fee:', energyFee, 'Sun/Energy');
-    } catch (err) {
-      console.error("Error getting energy price:", err);
-    }
+    let energyFee: any = 100; // Default 280 Sun/Energy
+    // try {
+    //   const params = await this.tronWeb.trx.getChainParameters();
+    //   energyFee = params.find((p: any) => p.key === "getEnergyFee")?.value || 280;
+    //   console.log('Energy Fee:', energyFee, 'Sun/Energy');
+    // } catch (err) {
+    //   console.error("Error getting energy price:", err);
+    // }
     return energyFee;
   }
 
@@ -366,8 +390,6 @@ export default class TronWallet {
     // 1. check if need approve
     const approvalRequired = await oftContract.approvalRequired().call();
     // check approve status
-    console.log("%cApprovalRequired: %o", "background:blue;color:white;", result.needApprove);
-
     // If approval is required, check actual allowance
     if (approvalRequired) {
       try {
@@ -413,7 +435,6 @@ export default class TronWallet {
     }
 
     const oftData = await oftContract.quoteOFT(sendParam).call();
-    console.log("oftData: %o", oftData);
     const [, , oftReceipt] = oftData;
     sendParam[3] = Big(oftReceipt[1].toString()).times(Big(1).minus(Big(slippageTolerance || 0).div(100))).toFixed(0);
 
@@ -438,8 +459,6 @@ export default class TronWallet {
       );
     }
 
-    console.log("%cMsgFee: %o", "background:blue;color:white;", msgFee);
-
     result.sendParam = {
       contract: oftContract,
       param: [
@@ -457,8 +476,6 @@ export default class TronWallet {
       ],
       options: { callValue: msgFee[0]["nativeFee"].toString() },
     };
-
-    console.log("%cParams: %o", "background:blue;color:white;", result.sendParam);
 
     // 3. estimate gas
     const nativeFeeUsd = Big(msgFee[0]["nativeFee"]?.toString() || 0).div(10 ** fromToken.nativeToken.decimals).times(getPrice(prices, fromToken.nativeToken.symbol));
@@ -518,12 +535,9 @@ export default class TronWallet {
       tx,
     } = params;
 
-    // const signedTx = await this.tronWeb.trx.sign(tx.transaction);
-    // const broadcast = await this.tronWeb.trx.sendRawTransaction(signedTx);
     const result = await this.signAndSendTransaction(tx.transaction);
 
     if (typeof result === "object" && result.message) {
-      console.log("%cTron send transaction message: %o", "background:#f00;color:#fff;", result.message);
       if (/user rejected the transaction/i.test(result.message)) {
         throw new Error("User rejected the transaction");
       }

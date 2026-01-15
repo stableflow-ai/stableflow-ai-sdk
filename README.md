@@ -357,8 +357,42 @@ const wallet = new NearWallet(connection, accountId, keyPair);
 ```typescript
 import { TronWallet } from 'stableflow-ai-sdk';
 
-const wallet = new TronWallet(tronWeb);
+// Using TronLink or other Tron wallet adapters
+const wallet = new TronWallet({
+  signAndSendTransaction: async (transaction: any) => {
+    // Sign transaction using TronWeb
+    const signedTransaction = await window.tronWeb.trx.sign(transaction);
+    // Send signed transaction
+    return await window.tronWeb.trx.sendRawTransaction(signedTransaction);
+  },
+  address: window.tronWeb?.defaultAddress?.base58, // User's Tron address
+});
 ```
+
+**With TronLink Wallet:**
+
+```typescript
+import { TronWallet } from 'stableflow-ai-sdk';
+
+// Wait for TronLink to be available
+if (window.tronWeb && window.tronWeb.ready) {
+  const wallet = new TronWallet({
+    signAndSendTransaction: async (transaction: any) => {
+      const signedTransaction = await window.tronWeb.trx.sign(transaction);
+      const result = await window.tronWeb.trx.sendRawTransaction(signedTransaction);
+      // Return transaction ID (txid)
+      return typeof result === 'string' ? result : result.txid;
+    },
+    address: window.tronWeb.defaultAddress.base58,
+  });
+}
+```
+
+**Note:** The `signAndSendTransaction` function should:
+- Accept a transaction object as parameter
+- Sign the transaction using the connected wallet
+- Send the signed transaction to the network
+- Return the transaction ID (txid) as a string, or an object with a `txid` property
 
 ### Aptos Wallets
 
