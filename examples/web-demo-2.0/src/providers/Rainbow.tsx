@@ -8,7 +8,8 @@ import {
   avalanche,
   optimism,
   gnosis,
-  berachain
+  berachain,
+  xLayer,
 } from "wagmi/chains";
 import {
   WagmiProvider,
@@ -55,6 +56,7 @@ const RpcUrls: any = {
   [avalanche.id]: fallback([...getRpcUrls("avax").map((rpc) => http(rpc)), http()]),
   [gnosis.id]: fallback([...getRpcUrls("gnosis").map((rpc) => http(rpc)), http()]),
   [berachain.id]: fallback([...getRpcUrls("bera").map((rpc) => http(rpc)), http()]),
+  [xLayer.id]: fallback([...getRpcUrls("xlayer").map((rpc) => http(rpc)), http()]),
 };
 
 const config = getDefaultConfig({
@@ -63,7 +65,7 @@ const config = getDefaultConfig({
   appUrl: metadata.url,
   appIcon: metadata.icons[0],
   projectId,
-  chains: [mainnet, polygon, arbitrum, bsc, base, avalanche, optimism, gnosis, berachain],
+  chains: [mainnet, polygon, arbitrum, bsc, base, avalanche, optimism, gnosis, berachain, xLayer],
   transports: {
     [mainnet.id]: RpcUrls[mainnet.id] || http(),
     [polygon.id]: RpcUrls[polygon.id] || http(),
@@ -74,6 +76,7 @@ const config = getDefaultConfig({
     [optimism.id]: RpcUrls[optimism.id] || http(),
     [gnosis.id]: RpcUrls[gnosis.id] || http(),
     [berachain.id]: RpcUrls[berachain.id] || http(),
+    [xLayer.id]: RpcUrls[xLayer.id] || http(),
   },
 });
 const connectors: any = connectorsForWallets(

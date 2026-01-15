@@ -14,8 +14,6 @@ if (JWT_TOKEN) {
 setRpcUrls({
   "arb": ["https://arbitrum-one-rpc.publicnode.com"],
   "eth": ["https://cloudflare-eth.com"],
-  // Of course, this is a fake api-key
-  "sol": ["https://mainnet.helius-rpc.com/?api-key=43b83e2b-fa05-4d51-ba81-961234556345"],
 });
 
 console.log(NetworkRpcUrlsMap);

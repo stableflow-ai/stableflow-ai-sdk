@@ -64,7 +64,7 @@ export const usdtChains: Record<string, TokenConfig> = {
     assetId: "nep141:sol-c800a4bd850783ccb82c2b2c7e84175443606352.omft.near",
     contractAddress: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
     ...chains.sol,
-    services: [Service.OneClick],
+    services: [Service.OneClick, Service.Usdt0],
   },
   tron: {
     ...usdt,

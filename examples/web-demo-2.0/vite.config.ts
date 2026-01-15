@@ -32,10 +32,18 @@ export default defineConfig({
   },
   define: {
     'process.env': {},
+    "process.browser": "true",
     global: 'globalThis',
   },
   optimizeDeps: {
     include: ["buffer", "process", "stream", "util", "near-api-js"],
+    esbuildOptions: {
+      define: {
+        global: "globalThis",
+        "process.env": "{}",
+        "process.browser": "true"
+      }
+    },
   },
 });
 

@@ -317,6 +317,16 @@ Each service has different characteristics:
 - Different processing times
 - Different minimum/maximum amounts
 
+### USDT0 Service Features
+
+The USDT0 service provides LayerZero-based USDT bridging with the following capabilities:
+
+- **Multi-chain Support**: Supports bridging from EVM chains (Ethereum, Arbitrum, Polygon, Optimism, etc.), Solana, and Tron
+- **Multi-hop Routing**: Automatically handles multi-hop transfers when direct routes are not available (e.g., Solana → Arbitrum → Ethereum)
+- **Dynamic Time Estimation**: Calculates estimated completion time based on source and destination chain block times and confirmations
+- **Accurate Fee Estimation**: Improved fee calculation including LayerZero message fees, gas costs, and legacy mesh transfer fees (0.03% for legacy routes)
+- **Legacy and Upgradeable Support**: Seamlessly handles both legacy and upgradeable OFT contracts
+
 Use `getAllQuote` to compare all available routes and select the best one for your use case.
 
 ## Wallet Integration
@@ -324,6 +334,8 @@ Use `getAllQuote` to compare all available routes and select the best one for yo
 The SDK supports multiple wallet types:
 
 ### EVM Wallets (Ethereum, Arbitrum, Polygon, etc.)
+
+**Using ethers.js with BrowserProvider:**
 
 ```typescript
 import { EVMWallet } from 'stableflow-ai-sdk';
@@ -334,23 +346,85 @@ const signer = await provider.getSigner();
 const wallet = new EVMWallet(provider, signer);
 ```
 
+**Using wagmi/viem (recommended for React apps):**
+
+```typescript
+import { EVMWallet } from 'stableflow-ai-sdk';
+import { ethers } from 'ethers';
+import { usePublicClient, useWalletClient } from 'wagmi';
+
+// In your React component
+const publicClient = usePublicClient();
+const { data: walletClient } = useWalletClient();
+
+const provider = new ethers.BrowserProvider(publicClient);
+const signer = walletClient 
+  ? await new ethers.BrowserProvider(walletClient).getSigner()
+  : null;
+
+const wallet = new EVMWallet(provider, signer);
+```
+
 ### Solana Wallets
+
+**Using @solana/wallet-adapter-react (recommended for React apps):**
+
+```typescript
+import { SolanaWallet } from 'stableflow-ai-sdk';
+import { useWallet } from '@solana/wallet-adapter-react';
+
+// In your React component
+const { publicKey, signTransaction } = useWallet();
+
+const wallet = new SolanaWallet({
+  publicKey: publicKey,
+  signer: { signTransaction }
+});
+```
+
+**Using wallet adapter directly:**
 
 ```typescript
 import { SolanaWallet } from 'stableflow-ai-sdk';
 import { Connection, PublicKey } from '@solana/web3.js';
 
 const connection = new Connection('https://api.mainnet-beta.solana.com');
-const wallet = new SolanaWallet(connection, publicKey, signTransaction);
+const publicKey = new PublicKey('YOUR_SOLANA_ADDRESS');
+
+const wallet = new SolanaWallet({
+  publicKey: publicKey,
+  signer: {
+    signTransaction: async (transaction) => {
+      // Sign transaction using your wallet adapter
+      // Example with Phantom:
+      // const provider = window.solana;
+      // return await provider.signTransaction(transaction);
+      return signedTransaction;
+    }
+  }
+});
 ```
+
+**Note**: Solana wallets can be used as the source chain for USDT0 bridging, enabling cross-chain transfers from Solana to EVM chains, Tron, and other supported networks.
 
 ### Near Wallets
 
 ```typescript
 import { NearWallet } from 'stableflow-ai-sdk';
+import { setupWalletSelector } from '@near-wallet-selector/core';
 
-const wallet = new NearWallet(connection, accountId, keyPair);
+// Setup wallet selector (e.g., using @near-wallet-selector)
+const selector = await setupWalletSelector({
+  network: 'mainnet',
+  modules: [
+    // Add your wallet modules here
+  ]
+});
+
+const wallet = new NearWallet(selector);
 ```
+
+**Note**: NearWallet requires a wallet selector instance from `@near-wallet-selector/core`. The selector handles wallet connection and transaction signing.
 
 ### Tron Wallets
 
@@ -398,9 +472,18 @@ if (window.tronWeb && window.tronWeb.ready) {
 
 ```typescript
 import { AptosWallet } from 'stableflow-ai-sdk';
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
 
-const wallet = new AptosWallet(provider, signer);
+// Using Aptos wallet adapter
+const { account, signAndSubmitTransaction } = useWallet();
+
+const wallet = new AptosWallet({
+  account: account,
+  signAndSubmitTransaction: signAndSubmitTransaction,
+});
 ```
+
+**Note**: AptosWallet requires an account object and a `signAndSubmitTransaction` function from the Aptos wallet adapter (e.g., `@aptos-labs/wallet-adapter-react`).
 
 ## Token Configuration
 
@@ -438,6 +521,8 @@ Each token configuration includes:
 - `rpcUrls` - RPC endpoint URLs
 
 ## Complete Example
+
+### Example 1: EVM to EVM Bridge (Ethereum → Arbitrum)
 
 Here's a complete example of a cross-chain swap:
 
@@ -494,6 +579,7 @@ if (!selectedQuote || !selectedQuote.quote) {
 }
 
 console.log(`Selected route: ${selectedQuote.serviceType}`);
+console.log(`Estimated time: ${selectedQuote.quote.estimateTime}s`);
 
 // 6. Handle approval if needed
 if (selectedQuote.quote.needApprove) {
@@ -540,6 +626,106 @@ const checkStatus = async () => {
 };
 
 checkStatus();
+```
+
+### Example 2: Solana to EVM Bridge (Solana → Ethereum)
+
+Bridge USDT from Solana to Ethereum using USDT0:
+
+```typescript
+import { SFA, OpenAPI, tokens, SolanaWallet, Service, TransactionStatus, setRpcUrls } from 'stableflow-ai-sdk';
+import { Connection, PublicKey } from '@solana/web3.js';
+
+// 1. Initialize SDK
+OpenAPI.BASE = 'https://api.stableflow.ai';
+OpenAPI.TOKEN = 'your-jwt-token';
+
+// (Optional) Configure custom RPC endpoints
+setRpcUrls({
+  "sol": ["https://api.mainnet-beta.solana.com"],
+  "eth": ["https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"],
+});
+
+// 2. Setup Solana wallet
+// Note: In a real application, get these from your wallet adapter
+// Example with @solana/wallet-adapter-react:
+// const { publicKey, signTransaction } = useWallet();
+// const wallet = new SolanaWallet({
+//   publicKey: publicKey,
+//   signer: { signTransaction }
+// });
+
+const connection = new Connection('https://api.mainnet-beta.solana.com');
+const publicKey = new PublicKey('YOUR_SOLANA_ADDRESS');
+const wallet = new SolanaWallet({
+  publicKey: publicKey,
+  signer: {
+    signTransaction: async (tx) => {
+      // Sign transaction using your Solana wallet adapter
+      // Example with Phantom:
+      // const provider = window.solana;
+      // return await provider.signTransaction(tx);
+      throw new Error('Implement wallet signing');
+    }
+  }
+});
+
+// 3. Select tokens
+const fromToken = tokens.find(t => 
+  t.chainName === 'Solana' && t.symbol === 'USDT'
+);
+const toToken = tokens.find(t => 
+  t.chainName === 'Ethereum' && t.symbol === 'USDT'
+);
+
+if (!fromToken || !toToken) {
+  throw new Error('Token pair not supported');
+}
+
+// 4. Get quotes (USDT0 will automatically use multi-hop routing if needed)
+const quotes = await SFA.getAllQuote({
+  dry: false,
+  prices: {},
+  fromToken,
+  toToken,
+  wallet,
+  recipient: '0x...', // Ethereum recipient address
+  refundTo: publicKey.toString(), // Solana refund address
+  amountWei: '1000000', // 1 USDT (6 decimals)
+  slippageTolerance: 0.5,
+});
+
+// 5. Find USDT0 quote
+const usdt0Quote = quotes.find(q => q.serviceType === Service.Usdt0 && q.quote && !q.error);
+if (usdt0Quote && usdt0Quote.quote) {
+  console.log(`USDT0 route available`);
+  console.log(`Estimated time: ${usdt0Quote.quote.estimateTime}s`);
+  console.log(`Total fees: $${usdt0Quote.quote.totalFeesUsd}`);
+  
+  // 6. Send transaction
+  const txHash = await SFA.send(Service.Usdt0, {
+    wallet,
+    quote: usdt0Quote.quote,
+  });
+  
+  console.log('Transaction submitted:', txHash);
+  
+  // 7. Poll for status
+  const checkStatus = async () => {
+    const status = await SFA.getStatus(Service.Usdt0, { hash: txHash });
+    console.log('Current status:', status.status);
+    
+    if (status.status === TransactionStatus.Success) {
+      console.log('Bridge completed! Destination tx:', status.toChainTxHash);
+    } else if (status.status === TransactionStatus.Failed) {
+      console.log('Bridge failed or refunded');
+    } else {
+      setTimeout(checkStatus, 5000);
+    }
+  };
+  
+  checkStatus();
+}
 ```
 
 ## Error Handling
@@ -795,6 +981,12 @@ For issues or support:
 - Support for multiple bridge services (OneClick, CCTP, USDT0)
 - Wallet integration for multiple chains
 - Pre-configured token information
+- **USDT0 Improvements**:
+  - Support for bridging from Solana as source chain
+  - Multi-hop routing support for cross-chain transfers
+  - Improved fee estimation accuracy
+  - Dynamic time estimation based on chain block times
+  - Fixed multi-hop composer issues
 
 ### v1.0.0
 - Initial release
