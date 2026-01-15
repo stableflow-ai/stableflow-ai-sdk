@@ -64,6 +64,14 @@ export const USDT0_CONFIG: Record<string, any> = {
     blockTime: 3, // Tron average block time ~3 seconds
     confirmations: 5, // Default confirmations from layerzeroscan.com
   },
+  "X Layer": {
+    contractAddress: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
+    oft: "0x94bcca6bdfd6a61817ab0e960bfede4984505554",
+    eid: 30274,
+    chainKey: "xlayer",
+    blockTime: 3, // Tron average block time ~3 seconds
+    confirmations: 20, // Default confirmations from layerzeroscan.com
+  },
 };
 
 // USDT0 DVN count (fixed value)
