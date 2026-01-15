@@ -37,7 +37,18 @@ class OneClickService {
     recipient: string;
     connectedWallets?: string[];
     prices: Record<string, string>;
+    amountWei: string;
+    appFees?: { recipient: string; fee: number; }[];
   }) {
+    const {
+      wallet,
+      fromToken,
+      toToken,
+      prices,
+      amountWei,
+      appFees = [],
+      ...restParams
+    } = params;
     const response: any = await request(OpenAPI, {
       method: 'POST',
       url: '/v0/quote',
@@ -51,15 +62,12 @@ class OneClickService {
         recipientType: "DESTINATION_CHAIN",
         deadline: new Date(Date.now() + this.offsetTime).toISOString(),
         quoteWaitingTimeMs: 3000,
-        appFees: BridgeFee,
+        appFees: [
+          ...BridgeFee,
+          ...appFees,
+        ],
         referral: "stableflow",
-        ...params,
-        // delete params
-        wallet: void 0,
-        fromToken: void 0,
-        toToken: void 0,
-        prices: void 0,
-        amountWei: void 0,
+        ...restParams,
       },
       mediaType: 'application/json',
       errors: {

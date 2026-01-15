@@ -30,6 +30,7 @@ export interface GetAllQuoteParams {
     amountWei: string;
     slippageTolerance: number;
     minInputAmount?: string;
+    appFees?: { recipient: string; fee: number; }[];
 }
 
 const submitOneclickDepositTx = (
@@ -211,6 +212,7 @@ export class SFA {
                 _params.destinationAsset = params.toToken.assetId;
                 _params.amount = params.amountWei;
                 _params.refundType = "ORIGIN_CHAIN";
+                _params.appFees = params.appFees;
             }
             if (service === Service.Usdt0) {
                 _params.originChain = params.fromToken.chainName;
