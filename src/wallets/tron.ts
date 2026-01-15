@@ -8,7 +8,7 @@ import { TronWeb } from "tronweb";
 import { SendType } from "../core/Send";
 import { Service, type ServiceType } from "../core/Service";
 import { DefaultAddresses } from "./config/addresses";
-import { chainsRpcUrls } from "./config/rpcs";
+import { getRpcUrls } from "./config/rpcs";
 
 export default class TronWallet {
   private signAndSendTransaction: any;
@@ -39,7 +39,7 @@ export default class TronWallet {
 
       setTimeout(() => {
         this.tronWeb = new TronWeb({
-          fullHost: chainsRpcUrls["Tron"],
+          fullHost: getRpcUrls("tron")[0],
           headers: {},
           privateKey: "",
         });

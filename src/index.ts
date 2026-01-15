@@ -39,6 +39,6 @@ export { AptosWallet } from './wallets/aptos';
 
 export { Service } from './core/Service';
 export { ServiceType } from './core/Service';
-export { chainsRpcUrls } from './wallets/config/rpcs';
+export { NetworkRpcUrlsMap, getRpcUrls, setRpcUrls } from './wallets/config/rpcs';
 
 export { TransactionStatus } from './models/Status';

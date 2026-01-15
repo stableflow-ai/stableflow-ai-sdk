@@ -23,7 +23,7 @@ import stableflowProxyIdl from "../bridges/oneclick/stableflow-proxy.json";
 import { SendType } from "../core/Send";
 import { Service, type ServiceType } from "../core/Service";
 import cctpService from "../bridges/cctp";
-import { chainsRpcUrls } from "./config/rpcs";
+import { getRpcUrls } from "./config/rpcs";
 
 export default class SolanaWallet {
   connection: Connection;
@@ -32,7 +32,7 @@ export default class SolanaWallet {
   private signer: any;
 
   constructor(options: { publicKey: PublicKey | null; signer: any }) {
-    this.connection = new Connection(chainsRpcUrls["Solana"], "confirmed");
+    this.connection = new Connection(getRpcUrls("sol")[0], "confirmed");
     this.publicKey = options.publicKey;
     this.signTransaction = options.signer.signTransaction;
     this.signer = options.signer;

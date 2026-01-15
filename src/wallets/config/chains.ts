@@ -1,5 +1,5 @@
 import { ChainConfig } from "../../models/Chain";
-import { chainsRpcUrls } from "./rpcs";
+import { getRpcUrls } from "./rpcs";
 
 export type ChainType = "near" | "sol" | "evm" | "tron" | "aptos";
 
@@ -44,7 +44,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "NEAR",
       decimals: 24,
     },
-    rpcUrl: chainsRpcUrls["Near"],
+    rpcUrls: getRpcUrls("near"),
   },
   sol: {
     chainName: "Solana",
@@ -58,7 +58,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "SOL",
       decimals: 9,
     },
-    rpcUrl: chainsRpcUrls["Solana"],
+    rpcUrls: getRpcUrls("sol"),
   },
   eth: {
     chainName: "Ethereum",
@@ -73,7 +73,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "ETH",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Ethereum"],
+    rpcUrls: getRpcUrls("eth"),
   },
   arb: {
     chainName: "Arbitrum",
@@ -88,7 +88,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "ETH",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Arbitrum"],
+    rpcUrls: getRpcUrls("arb"),
   },
   bsc: {
     chainName: "BNB Chain",
@@ -103,7 +103,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "BNB",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["BNB Chain"],
+    rpcUrls: getRpcUrls("bsc"),
   },
   avax: {
     chainName: "Avalanche",
@@ -118,7 +118,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "AVAX",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Avalanche"],
+    rpcUrls: getRpcUrls("avax"),
   },
   base: {
     chainName: "Base",
@@ -133,7 +133,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "ETH",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Base"],
+    rpcUrls: getRpcUrls("base"),
   },
   pol: {
     chainName: "Polygon",
@@ -148,7 +148,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "POL",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Polygon"],
+    rpcUrls: getRpcUrls("pol"),
   },
   gnosis: {
     chainName: "Gnosis",
@@ -163,7 +163,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "XDAI",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Gnosis"],
+    rpcUrls: getRpcUrls("gnosis"),
   },
   op: {
     chainName: "Optimism",
@@ -178,7 +178,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "ETH",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Optimism"],
+    rpcUrls: getRpcUrls("op"),
   },
   tron: {
     chainName: "Tron",
@@ -192,7 +192,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "TRX",
       decimals: 6,
     },
-    rpcUrl: chainsRpcUrls["Tron"],
+    rpcUrls: getRpcUrls("tron"),
   },
   aptos: {
     chainName: "Aptos",
@@ -206,7 +206,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "APT",
       decimals: 8,
     },
-    rpcUrl: chainsRpcUrls["Aptos"],
+    rpcUrls: getRpcUrls("aptos"),
   },
   bera: {
     chainName: "Berachain",
@@ -221,7 +221,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "BERA",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["Berachain"],
+    rpcUrls: getRpcUrls("bera"),
   },
   xlayer: {
     chainName: "X Layer",
@@ -236,7 +236,7 @@ const chains: Record<string, ChainConfig> = {
       symbol: "OKB",
       decimals: 18,
     },
-    rpcUrl: chainsRpcUrls["X Layer"],
+    rpcUrls: getRpcUrls("xlayer"),
   },
 };
 

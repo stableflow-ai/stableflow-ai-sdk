@@ -13,5 +13,5 @@ export interface ChainConfig {
     symbol: string;
     decimals: number;
   };
-  rpcUrl: string;
+  rpcUrls: string[];
 }

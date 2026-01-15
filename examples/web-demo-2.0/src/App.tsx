@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTransactionStore } from './stores/transactionStore';
 import { ChainSelector } from './components/ChainSelector';
 import { QuoteResult } from './components/QuoteResult';
@@ -11,13 +11,7 @@ import Big from 'big.js';
 
 import './App.css';
 
-import { SFA, OpenAPI, GetAllQuoteParams } from 'stableflow-ai-sdk';
-// Configure SDK
-OpenAPI.BASE = import.meta.env.VITE_STABLEFLOW_API_URL || 'https://api.stableflow.ai';
-const JWT_TOKEN = import.meta.env.VITE_STABLEFLOW_JWT_TOKEN;
-if (JWT_TOKEN) {
-  OpenAPI.TOKEN = JWT_TOKEN;
-}
+import { SFA, GetAllQuoteParams } from 'stableflow-ai-sdk';
 
 const prices = {
 
@@ -37,8 +31,16 @@ function App() {
 
   const { addTransaction } = useTransactionStore();
 
-  const fromChainConfig = fromChain ? getChainByKey(fromChain) : null;
-  const toChainConfig = toChain ? getChainByKey(toChain) : null;
+  const [fromChainConfig, toChainConfig] = useMemo(() => {
+    const _result: any = [null, null];
+    if (fromChain) {
+      _result[0] = getChainByKey(fromChain);
+    }
+    if (toChain) {
+      _result[1] = getChainByKey(toChain);
+    }
+    return _result;
+  }, [fromChain, toChain]);
 
   const { wallet: fromWallet, switchNetwork } = useWallet(fromChainConfig);
 
@@ -179,6 +181,25 @@ function App() {
     }
   };
 
+  const [fromChainBalance, setFromChainBalance] = useState<string>("");
+  const [fromChainBalanceLoading, setFromChainBalanceLoading] = useState<boolean>(false);
+  const getFromChainBalance = async (_fromChainConfig?: any) => {
+    setFromChainBalanceLoading(true);
+    const __fromChainConfig = _fromChainConfig || fromChainConfig;
+    if (!__fromChainConfig || !fromWallet || !fromWallet.account) {
+      setFromChainBalanceLoading(false);
+      setFromChainBalance("");
+      return;
+    }
+    try {
+      const balance = await fromWallet.wallet.getBalance(__fromChainConfig, fromWallet.account);
+      setFromChainBalance(Big(balance || 0).div(10 ** __fromChainConfig.decimals).toFixed(__fromChainConfig.decimals, 0));
+    } catch (error) {
+      setFromChainBalance("");
+    }
+    setFromChainBalanceLoading(false);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -195,15 +216,30 @@ function App() {
               value={fromChain}
               onChange={(_fromContractAddress) => {
                 switchNetwork(getChainByKey(_fromContractAddress)!);
-                setFromChain(_fromContractAddress)
+                setFromChain(_fromContractAddress);
+                getFromChainBalance(getChainByKey(_fromContractAddress));
               }}
               excludeContractAddress={toChain}
             />
             {fromChainConfig && (
-              <WalletConnector
-                chain={fromChainConfig}
-                onAddressChange={setFromWalletAddress}
-              />
+              <div className="quote-header">
+                <WalletConnector
+                  chain={fromChainConfig}
+                  onAddressChange={setFromWalletAddress}
+                />
+                <div className="wallet-connected">
+                  <div className="">{fromChainBalanceLoading ? "Loading..." : fromChainBalance}</div>
+                  <button
+                    type="button"
+                    className="btn-remove"
+                    style={{ background: "#667eea", opacity: fromChainBalanceLoading ? 0.5 : 1 }}
+                    onClick={() => getFromChainBalance()}
+                    disabled={fromChainBalanceLoading}
+                  >
+                    Fetch Balance
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

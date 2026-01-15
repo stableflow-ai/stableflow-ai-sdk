@@ -23,12 +23,18 @@ pnpm add stableflow-ai-sdk
 ## Quick Start
 
 ```typescript
-import { OpenAPI, SFA, tokens, EVMWallet } from 'stableflow-ai-sdk';
+import { OpenAPI, SFA, tokens, EVMWallet, setRpcUrls } from 'stableflow-ai-sdk';
 import { ethers } from 'ethers';
 
 // Initialize the API client
 OpenAPI.BASE = 'https://api.stableflow.ai';
 OpenAPI.TOKEN = "your-JSON-Web-Token";
+
+// (Optional) Configure custom RPC endpoints
+setRpcUrls({
+  "eth": ["https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"],
+  "arb": ["https://arbitrum-one-rpc.publicnode.com"],
+});
 
 // Get wallet instance (example with EVM)
 const provider = new ethers.BrowserProvider(window.ethereum);
@@ -395,19 +401,25 @@ Each token configuration includes:
 - `contractAddress` - Token contract address
 - `assetId` - StableFlow asset identifier
 - `services` - Array of supported bridge services
-- `rpcUrl` - RPC endpoint URL
+- `rpcUrls` - RPC endpoint URLs
 
 ## Complete Example
 
 Here's a complete example of a cross-chain swap:
 
 ```typescript
-import { SFA, OpenAPI, tokens, EVMWallet, Service, TransactionStatus } from 'stableflow-ai-sdk';
+import { SFA, OpenAPI, tokens, EVMWallet, Service, TransactionStatus, setRpcUrls } from 'stableflow-ai-sdk';
 import { ethers } from 'ethers';
 
 // 1. Initialize SDK
 OpenAPI.BASE = 'https://api.stableflow.ai';
 OpenAPI.TOKEN = 'your-jwt-token';
+
+// (Optional) Configure custom RPC endpoints
+setRpcUrls({
+  "eth": ["https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"],
+  "arb": ["https://arbitrum-one-rpc.publicnode.com"],
+});
 
 // 2. Setup wallet
 const provider = new ethers.BrowserProvider(window.ethereum);
@@ -542,6 +554,137 @@ The SDK provides full TypeScript type definitions:
 - `TokenConfig` - Token configuration interface
 - `WalletConfig` - Wallet interface
 - `TransactionStatus` - Transaction status enum
+
+## Custom RPC Configuration
+
+The SDK allows you to configure custom RPC endpoints for different blockchains. This is useful when you want to use your own RPC providers, private endpoints, or RPC services with API keys.
+
+### Setting Custom RPC URLs
+
+You can set custom RPC URLs using the `setRpcUrls` function. The function accepts a record where keys are blockchain identifiers and values are arrays of RPC URLs.
+
+**Supported Blockchain Identifiers:**
+- `"eth"` - Ethereum
+- `"arb"` - Arbitrum
+- `"bsc"` - BNB Smart Chain
+- `"avax"` - Avalanche
+- `"base"` - Base
+- `"pol"` - Polygon
+- `"gnosis"` - Gnosis Chain
+- `"op"` - Optimism
+- `"bera"` - Berachain
+- `"tron"` - Tron
+- `"aptos"` - Aptos
+- `"sol"` - Solana
+- `"near"` - NEAR Protocol
+- `"xlayer"` - X Layer
+
+**Basic Usage:**
+
+```typescript
+import { setRpcUrls } from 'stableflow-ai-sdk';
+
+// Set custom RPC URLs for specific blockchains
+setRpcUrls({
+  "eth": ["https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"],
+  "arb": ["https://arbitrum-one-rpc.publicnode.com"],
+  "sol": ["https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY"],
+  "near": ["https://rpc.mainnet.near.org"],
+});
+```
+
+**Multiple RPC URLs (Fallback Support):**
+
+You can provide multiple RPC URLs for the same blockchain. The SDK will use them in order, with the first URL being the primary endpoint:
+
+```typescript
+setRpcUrls({
+  "eth": [
+    "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY",
+    "https://eth.merkle.io",
+    "https://cloudflare-eth.com"
+  ],
+  "arb": [
+    "https://arbitrum-one-rpc.publicnode.com",
+    "https://arb1.arbitrum.io/rpc"
+  ],
+});
+```
+
+**How It Works:**
+
+- Custom RPC URLs are prepended to the default RPC URLs for each blockchain
+- If a custom URL already exists in the default list, it won't be duplicated
+- The SDK will prioritize custom URLs over default ones
+- Multiple URLs can be provided for redundancy and fallback support
+
+**Getting Current RPC URLs:**
+
+You can access the current RPC configuration using `NetworkRpcUrlsMap`:
+
+```typescript
+import { NetworkRpcUrlsMap, getRpcUrls } from 'stableflow-ai-sdk';
+
+// Get all RPC URLs for a specific blockchain
+const ethRpcUrls = getRpcUrls("eth");
+console.log(ethRpcUrls); // ["https://custom-rpc.com", "https://eth.merkle.io", ...]
+
+// Access the full RPC URLs map
+console.log(NetworkRpcUrlsMap);
+```
+
+**Complete Example:**
+
+```typescript
+import { OpenAPI, SFA, tokens, EVMWallet, setRpcUrls } from 'stableflow-ai-sdk';
+import { ethers } from 'ethers';
+
+// Initialize the API client
+OpenAPI.BASE = 'https://api.stableflow.ai';
+OpenAPI.TOKEN = "your-JSON-Web-Token";
+
+// Configure custom RPC endpoints
+setRpcUrls({
+  "eth": ["https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"],
+  "arb": ["https://arbitrum-one-rpc.publicnode.com"],
+  "sol": ["https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY"],
+});
+
+// Get wallet instance (will use custom RPC if configured)
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+const wallet = new EVMWallet(provider, signer);
+
+// Continue with your swap flow...
+const fromToken = tokens.find(t => t.chainName === 'Ethereum' && t.symbol === 'USDT');
+const toToken = tokens.find(t => t.chainName === 'Arbitrum' && t.symbol === 'USDT');
+
+const quotes = await SFA.getAllQuote({
+  dry: false,
+  minInputAmount: "0.1",
+  prices: {},
+  fromToken: fromToken!,
+  toToken: toToken!,
+  wallet: wallet,
+  recipient: '0x...',
+  refundTo: '0x...',
+  amountWei: ethers.parseUnits('100', fromToken!.decimals).toString(),
+  slippageTolerance: 0.5,
+});
+```
+
+**Best Practices:**
+
+1. **Set RPC URLs Early**: Configure custom RPC URLs before initializing wallets or making API calls
+2. **Use Multiple URLs**: Provide fallback RPC URLs for better reliability
+3. **API Key Security**: Never commit API keys to version control. Use environment variables:
+   ```typescript
+   setRpcUrls({
+     "eth": [process.env.ETH_RPC_URL || "https://eth.merkle.io"],
+     "sol": [process.env.SOL_RPC_URL || "https://solana-rpc.publicnode.com"],
+   });
+   ```
+4. **Test Your RPCs**: Ensure your custom RPC endpoints are working correctly before deploying
 
 ## Examples
 

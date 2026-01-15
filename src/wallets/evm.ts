@@ -11,7 +11,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { SendType } from "../core/Send";
 import { Service, type ServiceType } from "../core/Service";
-import { chainsRpcUrls } from "./config/rpcs";
+import { getRpcUrls } from "./config/rpcs";
 
 const DEFAULT_GAS_LIMIT = 100000n;
 
@@ -50,10 +50,11 @@ export default class EVMWallet {
 
   async getBalance(token: any, account: string) {
     try {
-      // Use token's rpcUrl if available, otherwise fall back to current provider
+      // Use token's rpcUrls if available, otherwise fall back to current provider
       let provider = this.provider;
-      if (token.rpcUrl) {
-        provider = new ethers.JsonRpcProvider(token.rpcUrl);
+      if (token.rpcUrls) {
+        const providers = token.rpcUrls.map((url: string) => new ethers.JsonRpcProvider(url));
+        provider = new ethers.FallbackProvider(providers);
       }
 
       if (token.symbol === "eth" || token.symbol === "ETH" || token.symbol === "native") {
@@ -470,7 +471,7 @@ export default class EVMWallet {
     let realRecipient = recipient;
     // get ATA address
     if (toToken.chainType === "sol") {
-      const connection = new Connection(chainsRpcUrls.Solana);
+      const connection = new Connection(getRpcUrls("sol")[0]);
 
       const wallet = new PublicKey(recipient);
       const USDC_MINT = new PublicKey(toToken.contractAddress);

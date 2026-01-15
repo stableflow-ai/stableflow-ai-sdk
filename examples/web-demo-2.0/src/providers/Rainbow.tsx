@@ -32,7 +32,7 @@ import { EVMWallet } from 'stableflow-ai-sdk';
 import "@rainbow-me/rainbowkit/styles.css";
 import useWalletsStore from "@/stores/use-wallets";
 import { useDebounceFn } from "../hooks/useDebounceFn";
-import { chainsRpcUrls } from "stableflow-ai-sdk";
+import { getRpcUrls } from "stableflow-ai-sdk";
 import { createClient, fallback } from "viem";
 import { metaMaskWallet, coinbaseWallet, okxWallet, bitgetWallet, binanceWallet, walletConnectWallet } from "@rainbow-me/rainbowkit/wallets";
 
@@ -46,15 +46,15 @@ export const metadata = {
 };
 
 const RpcUrls: any = {
-  [mainnet.id]: fallback([http(chainsRpcUrls["Ethereum"])]),
-  [polygon.id]: fallback([http(chainsRpcUrls["Polygon"])]),
-  [arbitrum.id]: fallback([http(chainsRpcUrls["Arbitrum"])]),
-  [optimism.id]: fallback([http(chainsRpcUrls["Optimism"])]),
-  [bsc.id]: fallback([http(chainsRpcUrls["BNB Chain"])]),
-  [base.id]: fallback([http(chainsRpcUrls["Base"])]),
-  [avalanche.id]: fallback([http(chainsRpcUrls["Avalanche"])]),
-  [gnosis.id]: fallback([http(chainsRpcUrls["Gnosis"])]),
-  [berachain.id]: fallback([http(chainsRpcUrls["Berachain"])]),
+  [mainnet.id]: fallback([...getRpcUrls("eth").map((rpc) => http(rpc)), http()]),
+  [polygon.id]: fallback([...getRpcUrls("pol").map((rpc) => http(rpc)), http()]),
+  [arbitrum.id]: fallback([...getRpcUrls("arb").map((rpc) => http(rpc)), http()]),
+  [optimism.id]: fallback([...getRpcUrls("op").map((rpc) => http(rpc)), http()]),
+  [bsc.id]: fallback([...getRpcUrls("bsc").map((rpc) => http(rpc)), http()]),
+  [base.id]: fallback([...getRpcUrls("base").map((rpc) => http(rpc)), http()]),
+  [avalanche.id]: fallback([...getRpcUrls("avax").map((rpc) => http(rpc)), http()]),
+  [gnosis.id]: fallback([...getRpcUrls("gnosis").map((rpc) => http(rpc)), http()]),
+  [berachain.id]: fallback([...getRpcUrls("bera").map((rpc) => http(rpc)), http()]),
 };
 
 const config = getDefaultConfig({
