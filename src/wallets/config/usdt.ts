@@ -94,4 +94,11 @@ export const usdtChains: Record<string, TokenConfig> = {
     ...chains.xlayer,
     services: [Service.OneClick, Service.Usdt0],
   },
+  plasma: {
+    ...usdt,
+    assetId: "nep245:v2_1.omni.hot.tg:9745_3aL9skCy1yhPoDB8oKMmRHRN7SJW",
+    contractAddress: "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb",
+    ...chains.plasma,
+    services: [Service.OneClick],
+  },
 };

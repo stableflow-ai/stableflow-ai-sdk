@@ -13,6 +13,7 @@ export const NetworkRpcUrlsMap: Record<string, string[]> = {
   "sol": ["https://solana-rpc.publicnode.com"],
   "near": ["https://nearinner.deltarpc.com"],
   "xlayer": ["https://rpc.xlayer.tech"],
+  "plasma": ["https://rpc.plasma.to"],
 };
 
 export const getRpcUrls = (blockchain: string): string[] => {

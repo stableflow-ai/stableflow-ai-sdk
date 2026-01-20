@@ -238,6 +238,21 @@ const chains: Record<string, ChainConfig> = {
     },
     rpcUrls: getRpcUrls("xlayer"),
   },
+  plasma: {
+    chainName: "Plasma",
+    blockchain: "plasma",
+    chainIcon: "/chains/plasma.png",
+    chainIconGray: "/chains/plasma-gray.png",
+    chainType: chainTypes.evm.value,
+    chainId: 9745,
+    blockExplorerUrl: "https://plasmascan.to/tx/",
+    primaryColor: "#162F29",
+    nativeToken: {
+      symbol: "XPL",
+      decimals: 18,
+    },
+    rpcUrls: getRpcUrls("plasma"),
+  },
 };
 
 export default chains;
