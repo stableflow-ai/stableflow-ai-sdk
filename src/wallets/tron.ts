@@ -577,7 +577,7 @@ export default class TronWallet {
 
     // calculate total fees
     for (const feeKey in result.fees) {
-      if (excludeFees.includes(feeKey)) {
+      if (excludeFees.includes(feeKey) || !/Usd$/.test(feeKey)) {
         continue;
       }
       result.totalFeesUsd = Big(result.totalFeesUsd || 0).plus(result.fees[feeKey] || 0);
