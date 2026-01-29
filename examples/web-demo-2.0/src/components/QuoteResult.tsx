@@ -37,6 +37,7 @@ export const QuoteResult: React.FC<QuoteResultProps> = ({
           const outputAmount = quoteData?.amountOutFormatted || quote.quote?.outputAmount || 'N/A';
           const fees = quote.quote?.fees || {};
           const totalFees = quote.quote?.totalFeesUsd || '0';
+          const estimateGas = quote.quote?.estimateSourceGasUsd || 'N/A';
           const estimateTime = quote.quote?.estimateTime || quoteData?.timeEstimate || 'N/A';
 
           return (
@@ -57,6 +58,10 @@ export const QuoteResult: React.FC<QuoteResultProps> = ({
                 <div className="quote-row">
                   <span>Total Fees:</span>
                   <strong>${totalFees}</strong>
+                </div>
+                <div className="quote-row">
+                  <span>Estimate Gas:</span>
+                  <strong>${estimateGas}</strong>
                 </div>
                 <div className="quote-row">
                   <span>Est. Time:</span>

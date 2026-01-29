@@ -721,7 +721,7 @@ export default class TronWallet {
       result.estimateSourceGas = numberRemoveEndZero(Big(totalAmount).times(10 ** fromToken.nativeToken.decimals).toFixed(fromToken.nativeToken.decimals));
       result.estimateSourceGasUsd = usd;
     } catch (error) {
-      const energyUsed = 30000;
+      const energyUsed = 169000;
       const rawDataHexLength = 500;
       const bandwidthAmount = (rawDataHexLength / 2 + DATA_HEX_PROTOBUF_EXTRA + SIGNATURE_SIZE) * 0.001;
 
