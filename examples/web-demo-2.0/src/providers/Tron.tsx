@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import WalletSelector from "./components/wallet-selector";
 import { OkxWalletAdapter, TronLinkAdapter } from "@tronweb3/tronwallet-adapters";
 import { useWalletSelector } from "./hooks/use-wallet-selector";
+import { TronWeb } from "tronweb";
 
-import { TronWallet } from 'stableflow-ai-sdk';
+import { TronWallet, getRpcUrls } from 'stableflow-ai-sdk';
 
 const wallets = [new TronLinkAdapter(), new OkxWalletAdapter()];
 
@@ -53,19 +54,25 @@ const Content = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const setWindowWallet = (address?: string) => {
-      const windowTronWeb = (window as any).tronWeb;
-      walletRef.current = new TronWallet({
-        signAndSendTransaction: async (transaction: any) => {
-          const signedTransaction = await windowTronWeb.trx.sign(transaction);
-          return windowTronWeb.trx.sendRawTransaction(signedTransaction);
-        },
-        address: address || windowTronWeb?.defaultAddress?.base58,
-      });
-    };
-    setWindowWallet();
+  const setWindowWallet = (address?: string) => {
+    const _address = address || adapter.address;
+    const _tronWeb = new TronWeb({
+      fullHost: getRpcUrls("tron")[0],
+      headers: {},
+      privateKey: "",
+    });
+    _address && _tronWeb.setAddress(_address);
+    walletRef.current = new TronWallet({
+      signAndSendTransaction: async (transaction: any) => {
+        const signedTx = await adapter.signTransaction(transaction);
+        const result = await _tronWeb.trx.sendRawTransaction(signedTx);
+        return result.txid;
+      },
+      address: _address,
+    });
+  };
 
+  useEffect(() => {
     if (!adapter) {
       setWallets({
         tron: {
@@ -77,6 +84,8 @@ const Content = () => {
       });
       return;
     }
+
+    setWindowWallet();
 
     setWalletStore({
       tronWalletAdapter: adapter.name
