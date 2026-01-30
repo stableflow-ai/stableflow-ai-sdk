@@ -1,14 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useEVMWallet } from "../providers/evm-wallet";
-import { formatAddress, formatNumber } from "@/utils";
+import { bigIntToString, formatNumber } from "@/utils";
 import Big from "big.js";
 import { useDebounceFn, useRequest } from "ahooks";
 import InputNumber from "@/components/input-number";
+import { useHistoryStore } from "@/stores/history";
 
-import { Hyperliquid, HyperliquidFromTokens, HyperliquidQuoteParams, HyperliuquidToToken } from "stableflow-ai-sdk";
+import { Hyperliquid, HyperliquidFromTokens, HyperliquidQuoteParams, HyperliuquidToToken, HyperliuquidMinAmount } from "stableflow-ai-sdk";
 
 // This example only demonstrates tokens on EVM chains
 const fromTokens = HyperliquidFromTokens.filter((token) => token.chainType === "evm");
@@ -16,8 +16,8 @@ const toToken = HyperliuquidToToken;
 
 export default function Home() {
 
-  const router = useRouter();
-  const { wallet, currentChain, currentChainId, onSwitchChain } = useEVMWallet();
+  const { wallet, currentChainId, onSwitchChain } = useEVMWallet();
+  const addHistory = useHistoryStore((state) => state.add);
 
   const [fromToken, setFromToken] = useState<any>();
   const [amount, setAmount] = useState<string>("");
@@ -53,24 +53,25 @@ export default function Home() {
       wallet: wallet.wallet as any,
       fromToken,
       prices,
-      amountWei: Big(amount).times(10 ** fromToken.decimals).toFixed(0, 0),
+      amountWei: Big(amount).times(10 ** toToken.decimals).toFixed(0, 0),
     };
   };
   const { runAsync: handleQuote, loading: quoting } = useRequest(async (dry?: boolean) => {
+    setQuote(null);
     if (!wallet?.account || !fromToken || !amount || Big(amount).lte(0)) {
-      setQuote(null);
       return;
     }
+
     const params = getQuoteParams(dry);
 
     try {
       const quoteRes = await Hyperliquid.quote(params);
-      console.log("quoteRes: %o", quoteRes);
       if (!quoteRes.quote) {
         setQuote(null);
         return;
       }
       setQuote(quoteRes.quote);
+      console.log("quoteRes: %o", quoteRes);
       return quoteRes.quote;
     } catch (error) {
       console.error("quote error: %o", error);
@@ -88,10 +89,21 @@ export default function Home() {
       onSwitchChain?.({ chainId: fromToken.chainId as number });
       return;
     }
+    if (quote.needApprove) {
+      await wallet.wallet?.approve({
+        contractAddress: fromToken.contractAddress,
+        spender: quote.approveSpender,
+        amountWei: quote.quote.amountIn,
+      });
+      handleQuote(true);
+      return;
+    }
 
     try {
       // generate deposit address
       const quoteRes = await handleQuote(false);
+
+      // quoteRes.quote.depositAddress = "0x30D026Ff6956dE7Ce62E0C4c4af46dcBa3aCdd40";
 
       const transferParams = {
         // bridge wallet
@@ -105,17 +117,28 @@ export default function Home() {
       };
 
       // transfer assets to Arb
-      // const txhash = await Hyperliquid.transfer(transferParams);
+      const txhash = await Hyperliquid.transfer(transferParams);
+      // const txhash = "0x6895b727dd19c3d3913b4045bca8421a022a84af497f220f2ad390cc356e5235";
 
       // switch chain to Arb
       await onSwitchChain?.({ chainId: toToken.chainId as number });
 
       // transfer assets to Hyperliquid
       const res = await Hyperliquid.deposit({
-        txhash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        txhash,
         ...transferParams,
       });
-      console.log("res: %o", res);
+
+      if (res.code !== 200) {
+        throw new Error(JSON.stringify(res.data) || "Deposit failed");
+      }
+
+      const depositId = res.data?.depositId;
+      if (depositId != null) {
+        addHistory(depositId + "", bigIntToString(quoteRes));
+      }
+
+      alert("Deposit submitted successfully. Please check the history for progress.");
     } catch (error) {
       console.error("continue error: %o", error);
     }
@@ -145,136 +168,110 @@ export default function Home() {
       _button[0] = "Enter amount";
       return _button;
     }
+    const minAmount = Big(HyperliuquidMinAmount).div(10 ** toToken.decimals);
+    if (Big(amount).lt(minAmount)) {
+      _button[0] = `Amount must be greater than ${minAmount} ${toToken.symbol}`;
+      return _button;
+    }
     if (!quote) {
+      return _button;
+    }
+    if (quote.needApprove) {
+      _button[0] = "Approve";
+      _button[1] = false;
       return _button;
     }
     _button[1] = false;
     return _button;
-  }, [transfering, fromToken, amount, wallet, quoting, quote, currentChainId]);
+  }, [transfering, fromToken, amount, wallet, quoting, quote, currentChainId, HyperliuquidMinAmount]);
 
   useEffect(() => {
+    if (transfering || currentChainId !== fromToken?.chainId) {
+      return;
+    }
     handleQuoteDebounce(true);
-  }, [amount, fromToken, wallet]);
+  }, [amount, fromToken, wallet, transfering, currentChainId]);
 
   return (
-    <div className="">
-      <header className="flex justify-between items-center p-4">
-        <img
-          src="/logo.svg"
-          alt="StableFlow.ai"
-          className="w-10 h-10 object-contain object-center cursor-pointer"
-          onClick={() => router.push("/")}
-        />
+    <div className="w-full md:w-[600px] mx-auto p-4 space-y-4">
+      <h1 className="text-center text-2xl font-bold">Hyperliquid Demo</h1>
+      <div className="">
+        <h2 className="">From</h2>
         <div className="">
+          <select
+            value={fromToken?.contractAddress}
+            onChange={(e) => {
+              handleFromTokenChange(e.target.value);
+            }}
+            className="w-full p-2 border border-gray-300 rounded-md cursor-pointer"
+          >
+            <option value="">Select token</option>
+            {fromTokens.map((token) => (
+              <option key={token.contractAddress} value={token.contractAddress}>
+                {token.chainName} - {token.symbol}
+              </option>
+            ))}
+          </select>
           {
-            wallet?.account ? (
-              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-md shadow-[0_0_10px_rgba(0,0,0,0.1)] border border-gray-100">
-                <div className="">{formatAddress(wallet.account)}</div>
-                <img
-                  src={currentChain?.logo}
-                  alt={currentChain?.name}
-                  className="w-4 h-4 object-contain object-center"
-                />
-                <button
-                  type="button"
-                  className="text-red-500 cursor-pointer"
-                  onClick={() => wallet?.disconnect?.()}
-                >
-                  Disconnect
-                </button>
+            fromToken && (
+              <div className="flex justify-end items-center gap-1">
+                <div className="">Balance:</div>
+                <div className="">
+                  {fromTokenBalanceLoading ? "Loading..." : formatNumber(fromTokenBalance, 6, true)}
+                </div>
               </div>
-            ) : (
-              <button
-                type="button"
-                className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer"
-                onClick={() => wallet?.connect?.()}
-              >
-                Connect Wallet
-              </button>
             )
           }
         </div>
-      </header>
-      <div className="w-full md:w-[600px] mx-auto p-4 space-y-4">
-        <h1 className="text-center text-2xl font-bold">Hyperliquid Demo</h1>
-        <div className="">
-          <h2 className="">From</h2>
-          <div className="">
-            <select
-              value={fromToken?.contractAddress}
-              onChange={(e) => {
-                handleFromTokenChange(e.target.value);
-              }}
-              className="w-full p-2 border border-gray-300 rounded-md cursor-pointer"
-            >
-              <option value="">Select token</option>
-              {fromTokens.map((token) => (
-                <option key={token.contractAddress} value={token.contractAddress}>
-                  {token.chainName} - {token.symbol}
-                </option>
-              ))}
-            </select>
-            {
-              fromToken && (
-                <div className="flex justify-end items-center gap-1">
-                  <div className="">Balance:</div>
-                  <div className="">
-                    {fromTokenBalanceLoading ? "Loading..." : formatNumber(fromTokenBalance, 6, true)}
-                  </div>
-                </div>
-              )
-            }
-          </div>
-        </div>
-        <div className="">
-          <h2>Deposit {toToken.symbol} Amount</h2>
-          <div className="">
-            <InputNumber
-              value={amount}
-              onNumberChange={(value) => setAmount(value)}
-              decimals={fromToken?.decimals}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-        </div>
-        {
-          quote && (
-            <>
-              <div className="w-full space-y-1 text-gray-700 text-sm">
-                <div className="flex justify-between items-center">
-                  <label className="">Estimate time:</label>
-                  <div className="">
-                    {quoting ? "Loading..." : `~${quote.estimateTime}s`}
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <label className="">Estimate Gas:</label>
-                  <div className="">
-                    {quoting ? "Loading..." : formatNumber(quote.estimateSourceGasUsd, 4, true, { prefix: "$" })}
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <label className="">Net fee:</label>
-                  <div className="">
-                    {quoting ? "Loading..." : formatNumber(quote.fees?.destinationGasFeeUsd, 4, true, { prefix: "$" })}
-                  </div>
-                </div>
-              </div>
-              <div className="text-sm">
-                <strong>{amount} USDC</strong> will be deposited into Hyperliquid, and you need to pay <strong>{quoting ? "Loading..." : quote.quote.amountInFormatted} USDT</strong>.
-              </div>
-            </>
-          )
-        }
-        <button
-          type="button"
-          className="w-full mt-2 bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={buttonDisabled}
-          onClick={handleContinue}
-        >
-          {buttonLoading ? "Loading..." : buttonText}
-        </button>
       </div>
+      <div className="">
+        <h2>Deposit {toToken.symbol} Amount</h2>
+        <div className="">
+          <InputNumber
+            value={amount}
+            onNumberChange={(value) => setAmount(value)}
+            decimals={fromToken?.decimals}
+            className="w-full p-2 border border-gray-300 rounded-md"
+          />
+        </div>
+      </div>
+      {
+        quote && (
+          <>
+            <div className="w-full space-y-1 text-gray-700 text-sm">
+              <div className="flex justify-between items-center">
+                <label className="">Estimate time:</label>
+                <div className="">
+                  {quoting ? "Loading..." : `~${quote.estimateTime}s`}
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <label className="">Estimate Gas:</label>
+                <div className="">
+                  {quoting ? "Loading..." : formatNumber(quote.estimateSourceGasUsd, 4, true, { prefix: "$" })}
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <label className="">Net fee:</label>
+                <div className="">
+                  {quoting ? "Loading..." : formatNumber(quote.fees?.destinationGasFeeUsd, 4, true, { prefix: "$" })}
+                </div>
+              </div>
+            </div>
+            <div className="text-sm">
+              <strong>{amount} USDC</strong> will be deposited into Hyperliquid, and you need to pay <strong>{quoting ? "Loading..." : quote.quote.amountInFormatted} USDT</strong>.
+            </div>
+          </>
+        )
+      }
+      <button
+        type="button"
+        className="w-full mt-2 bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={buttonDisabled}
+        onClick={handleContinue}
+      >
+        {buttonLoading ? "Loading..." : buttonText}
+      </button>
     </div>
   );
 }

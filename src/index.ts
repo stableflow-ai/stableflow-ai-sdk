@@ -27,10 +27,15 @@ export {
   Hyperliquid,
   HyperliquidFromTokens,
   HyperliuquidToToken,
+  HyperliuquidMinAmount,
   HyperliquidQuoteParams,
   HyperliquidTransferParams,
   HyperliquidDepositParams,
   HyperliquidGetStatusParams,
+  HyperliquidDepositResponse,
+  HyperliquidDepositStatusResponse,
+  HyperliquidDepositStatusResponseData,
+  HyperliquidDepositResponseData,
 } from './services/Hyperliquid';
 
 // Export tokens

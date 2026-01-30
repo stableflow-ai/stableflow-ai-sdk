@@ -35,6 +35,8 @@ export interface GetAllQuoteParams {
         appFees?: { recipient: string; fee: number; }[];
         // default is EXACT_INPUT
         swapType?: "EXACT_INPUT" | "EXACT_OUTPUT";
+        // default is true
+        isProxy?: boolean;
     };
 }
 
@@ -219,6 +221,7 @@ export class SFA {
                 _params.refundType = "ORIGIN_CHAIN";
                 _params.appFees = params.oneclickParams?.appFees;
                 _params.swapType = params.oneclickParams?.swapType;
+                _params.isProxy = params.oneclickParams?.isProxy;
             }
             if (service === Service.Usdt0) {
                 _params.originChain = params.fromToken.chainName;

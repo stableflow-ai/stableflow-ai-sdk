@@ -18,7 +18,8 @@
     "react-dom": "19.2.3",
     "stableflow-ai-sdk": "file:../..",
     "viem": "^2.45.0",
-    "wagmi": "^2.19.5"
+    "wagmi": "^2.19.5",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

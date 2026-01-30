@@ -1,5 +1,25 @@
 import Big from "big.js";
 
+/**
+ * Recursively convert BigInt values to string in objects/arrays (for JSON-safe storage).
+ */
+export function bigIntToString<T>(value: T): T {
+  if (typeof value === "bigint") {
+    return String(value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => bigIntToString(item)) as T;
+  }
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value)) {
+      out[key] = bigIntToString((value as Record<string, unknown>)[key]);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export const formatAddress = (
   address: string,
   prefixLength = 4,

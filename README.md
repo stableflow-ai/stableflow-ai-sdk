@@ -129,6 +129,8 @@ const quotes = await SFA.getAllQuote({
     appFees?: { recipient: string; fee: number; }[];
     // default is EXACT_INPUT
     swapType?: "EXACT_INPUT" | "EXACT_OUTPUT";
+    // default is true
+    isProxy?: boolean;
   };
 });
 ```
@@ -313,11 +315,12 @@ const finalStatus = await pollTransactionStatus(Service.OneClick, {
 
 ## Supported Bridge Services
 
-The SDK supports three bridge services:
+The SDK supports three bridge services for general cross-chain swaps, plus a dedicated Hyperliquid deposit flow:
 
 - **OneClick** (`Service.OneClick`) - Native StableFlow bridge service
 - **CCTP** (`Service.CCTP`) - Circle's Cross-Chain Transfer Protocol
 - **USDT0** (`Service.Usdt0`) - LayerZero-based USDT bridge
+- **Hyperliquid** – Deposit from multiple chains into Hyperliquid (destination: Arbitrum USDC). See [Hyperliquid Service](#hyperliquid-service) below.
 
 Each service has different characteristics:
 - Different fee structures
@@ -336,6 +339,93 @@ The USDT0 service provides LayerZero-based USDT bridging with the following capa
 - **Legacy and Upgradeable Support**: Seamlessly handles both legacy and upgradeable OFT contracts
 
 Use `getAllQuote` to compare all available routes and select the best one for your use case.
+
+### Hyperliquid Service
+
+The Hyperliquid service enables depositing tokens from multiple source chains into Hyperliquid. The destination is fixed as **USDC on Arbitrum**; the SDK uses the OneClick bridge under the hood to swap/bridge from your chosen source token to Arbitrum USDC, then submits a deposit with permit to the Hyperliquid deposit API.
+
+**Exports:**
+
+- `Hyperliquid` – singleton service instance
+- `HyperliquidFromTokens` – list of supported source tokens (all tokens except Arbitrum USDC)
+- `HyperliuquidToToken` – destination token config (Arbitrum USDC)
+- `HyperliuquidMinAmount` – minimum amount in wei (e.g. 5 USDC)
+- Types: `HyperliquidQuoteParams`, `HyperliquidTransferParams`, `HyperliquidDepositParams`, `HyperliquidGetStatusParams`, `HyperliquidDepositResponse`, `HyperliquidDepositStatusResponse`, etc.
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `quote(params)` | Get a quote for depositing to Hyperliquid. Returns `{ quote, error }`. |
+| `transfer(params)` | Send tokens from the user's wallet to the bridge (uses OneClick). Returns source chain tx hash. |
+| `deposit(params)` | After transfer, submit deposit with EIP-2612 permit. Returns `{ code, data: { depositId } }`. |
+| `getStatus(params)` | Query deposit status by `depositId`. Returns `{ code, data: { status, txHash } }`. |
+
+**Flow (typical):**
+
+1. User selects source token from `HyperliquidFromTokens` and amount (≥ `HyperliuquidMinAmount`).
+2. Call `Hyperliquid.quote(params)` (optionally with `dry: true` for preview, then `dry: false` to get `depositAddress`).
+3. Call `Hyperliquid.transfer({ wallet, quote, evmWallet, evmWalletAddress })` to send tokens; receive `txhash`.
+4. Optionally switch the wallet to Arbitrum, then call `Hyperliquid.deposit({ ...transferParams, txhash })` to submit the deposit and get `depositId`.
+5. Poll or one-off check with `Hyperliquid.getStatus({ depositId })` for `status` and `txHash`. `status` enum is `type HyperliquidDepositStatus = "PROCESSING" | "SUCCESS" | "REFUNDED" | "FAILED";`
+
+**Example:**
+
+```typescript
+import {
+  Hyperliquid,
+  HyperliquidFromTokens,
+  HyperliuquidToToken,
+  HyperliuquidMinAmount,
+  OpenAPI,
+} from 'stableflow-ai-sdk';
+import Big from 'big.js';
+
+OpenAPI.BASE = 'https://api.stableflow.ai';
+OpenAPI.TOKEN = 'your-JWT';
+
+// 1. Quote (dry: false to get deposit address for transfer)
+const quoteRes = await Hyperliquid.quote({
+  dry: false,
+  slippageTolerance: 0.05,
+  refundTo: evmAddress,
+  recipient: evmAddress,
+  wallet,
+  fromToken: selectedFromToken,
+  prices: {},
+  amountWei: Big(amount).times(10 ** HyperliuquidToToken.decimals).toFixed(0, 0),
+});
+if (quoteRes.error || !quoteRes.quote) throw new Error(quoteRes.error || 'No quote');
+const quote = quoteRes.quote;
+
+// 2. Transfer on source chain
+const txhash = await Hyperliquid.transfer({
+  wallet,
+  evmWallet,
+  evmWalletAddress,
+  quote,
+});
+
+// 3. Submit deposit (after switching to Arbitrum if needed)
+const depositRes = await Hyperliquid.deposit({
+  wallet,
+  evmWallet,
+  evmWalletAddress,
+  quote,
+  txhash,
+});
+const depositId = depositRes.data?.depositId;
+
+// 4. Check status
+const statusRes = await Hyperliquid.getStatus({ depositId: String(depositId) });
+// statusRes.data.status, statusRes.data.txHash
+```
+
+**Token configs:**
+
+- Use `HyperliquidFromTokens` for the source token list (filter by `chainType === 'evm'` if you only support EVM).
+- Destination is always `HyperliuquidToToken` (Arbitrum USDC).
+- Enforce minimum amount with `HyperliuquidMinAmount` so users do not send below the bridge minimum.
 
 ## Wallet Integration
 
