@@ -5,7 +5,8 @@ import chains from "./chains";
 export const usdt = {
   symbol: "USDT",
   decimals: 6,
-  icon: "/usdt.png"
+  icon: "/usdt.png",
+  name: "Tether USD",
 };
 
 export const usdtChains: Record<string, TokenConfig> = {

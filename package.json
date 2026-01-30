@@ -1,6 +1,6 @@
 {
   "name": "stableflow-ai-sdk",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "TypeScript SDK for StableFlow AI API - Cross-chain token swap solution",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

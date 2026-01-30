@@ -23,6 +23,15 @@ export type { TransactionDetails } from './models/TransactionDetails';
 
 // Export main service
 export { SFA, GetAllQuoteParams } from './services/SFA';
+export {
+  Hyperliquid,
+  HyperliquidFromTokens,
+  HyperliuquidToToken,
+  HyperliquidQuoteParams,
+  HyperliquidTransferParams,
+  HyperliquidDepositParams,
+  HyperliquidGetStatusParams,
+} from './services/Hyperliquid';
 
 // Export tokens
 export type { TokenConfig } from './models/Token';

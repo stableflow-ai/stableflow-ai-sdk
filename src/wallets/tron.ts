@@ -14,11 +14,13 @@ import { getHopMsgFee } from "../bridges/usdt0/hop-composer";
 import { DATA_HEX_PROTOBUF_EXTRA, LZ_RECEIVE_VALUE, SIGNATURE_SIZE, USDT0_LEGACY_MESH_TRANSFTER_FEE } from "../bridges/usdt0/config";
 
 const DefaultTronWalletAddress = DefaultAddresses["tron"];
-const customTronWeb = new TronWeb({
-  fullHost: getRpcUrls("tron")[0],
-  headers: {},
-  privateKey: "",
-});
+const getCustomTronWeb = () => {
+  return new TronWeb({
+    fullHost: getRpcUrls("tron")[0],
+    headers: {},
+    privateKey: "",
+  });
+};
 
 export default class TronWallet {
   private signAndSendTransaction: any;
@@ -29,6 +31,7 @@ export default class TronWallet {
     this.signAndSendTransaction = options.signAndSendTransaction;
     this.address = options.address;
 
+    const customTronWeb = getCustomTronWeb();
     customTronWeb.setAddress(this.address || DefaultTronWalletAddress);
     this.tronWeb = customTronWeb;
   }
@@ -37,6 +40,7 @@ export default class TronWallet {
     return new Promise((resolve) => {
       if (this.tronWeb) {
         const address = this.tronWeb.defaultAddress.base58 || DefaultTronWalletAddress;
+        const customTronWeb = getCustomTronWeb();
         customTronWeb.setAddress(address);
         this.tronWeb = customTronWeb;
         resolve(this.tronWeb);
@@ -47,6 +51,7 @@ export default class TronWallet {
         if ((window as any).tronWeb) {
           this.tronWeb = (window as any).tronWeb;
           const address = this.tronWeb.defaultAddress.base58 || DefaultTronWalletAddress;
+          const customTronWeb = getCustomTronWeb();
           customTronWeb.setAddress(address);
           this.tronWeb = customTronWeb;
           resolve(this.tronWeb);
@@ -58,6 +63,7 @@ export default class TronWallet {
       checkTronWeb();
 
       setTimeout(() => {
+        const customTronWeb = getCustomTronWeb();
         customTronWeb.setAddress(DefaultTronWalletAddress);
         this.tronWeb = customTronWeb;
         resolve(this.tronWeb);

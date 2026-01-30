@@ -80,14 +80,16 @@ function App() {
         refundTo: fromWalletAddress,
         amountWei: Big(amount).times(10 ** fromChainConfig.decimals).toString(),
         slippageTolerance: 0.5, // 0.5%
-        appFees: [
-          {
-            // your fee collection address
-            recipient: "stableflow.near",
-            // Fee rate, as a percentage of the amount. 100 = 1%, 1 = 0.01%
-            fee: 100,
-          },
-        ],
+        oneclickParams: {
+          appFees: [
+            {
+              // your fee collection address
+              recipient: "stableflow.near",
+              // Fee rate, as a percentage of the amount. 100 = 1%, 1 = 0.01%
+              fee: 100,
+            },
+          ],
+        },
       };
 
       const response = await SFA.getAllQuote(quoteRequest);

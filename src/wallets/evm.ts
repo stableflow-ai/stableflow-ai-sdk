@@ -690,6 +690,12 @@ export default class EVMWallet {
 
     return result;
   }
+
+  async signTypedData(params: any) {
+    const { domain, types, values } = params;
+
+    return await this.signer?.signTypedData(domain, types, values);
+  }
 }
 
 export { EVMWallet };

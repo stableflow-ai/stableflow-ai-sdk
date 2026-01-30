@@ -4,6 +4,7 @@ import { Service, type ServiceType } from "../core/Service";
 import { getPrice } from "../utils/price";
 import { numberRemoveEndZero } from "../utils/number";
 import { SendType } from "../core/Send";
+import { getRpcUrls } from "./config/rpcs";
 
 export default class AptosWallet {
   connection: any;
@@ -14,6 +15,7 @@ export default class AptosWallet {
   constructor(options: { account: any | null; signAndSubmitTransaction: any; }) {
     const config = new AptosConfig({
       network: Network.MAINNET,
+      fullnode: getRpcUrls("aptos")[0],
     });
     const aptos = new Aptos(config);
 

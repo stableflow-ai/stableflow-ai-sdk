@@ -39,6 +39,7 @@ class OneClickService {
     prices: Record<string, string>;
     amountWei: string;
     appFees?: { recipient: string; fee: number; }[];
+    swapType?: "EXACT_INPUT" | "EXACT_OUTPUT";
   }) {
     const {
       wallet,
@@ -47,6 +48,7 @@ class OneClickService {
       prices,
       amountWei,
       appFees = [],
+      swapType = "EXACT_INPUT",
       ...restParams
     } = params;
     const response: any = await request(OpenAPI, {
@@ -54,7 +56,7 @@ class OneClickService {
       url: '/v0/quote',
       body: {
         depositMode: "SIMPLE",
-        swapType: "EXACT_INPUT",
+        swapType,
         depositType: "ORIGIN_CHAIN",
         sessionId: `session_${Date.now()}_${Math.random()
           .toString(36)
@@ -87,7 +89,10 @@ class OneClickService {
         // const bridgeFee = BridgeFee.reduce((acc, item) => {
         //   return acc.plus(Big(item.fee).div(100));
         // }, Big(0)).toFixed(2) + "%";
-        const netFee = Big(params.amount).div(10 ** params.fromToken.decimals).minus(Big(res.data?.quote?.amountOut || 0).div(10 ** params.toToken.decimals));
+        let netFee = Big(params.amount).div(10 ** params.fromToken.decimals).minus(Big(res.data?.quote?.amountOut || 0).div(10 ** params.toToken.decimals));
+        if (swapType === "EXACT_OUTPUT") {
+          netFee = Big(res.data?.quote?.amountIn || 0).div(10 ** params.toToken.decimals).minus(Big(params.amount).div(10 ** params.fromToken.decimals));
+        }
         const bridgeFeeValue = BridgeFee.reduce((acc, item) => {
           return acc.plus(Big(params.amount).div(10 ** params.fromToken.decimals).times(Big(item.fee).div(10000)));
         }, Big(0));

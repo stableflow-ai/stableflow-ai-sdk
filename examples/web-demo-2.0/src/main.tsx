@@ -13,7 +13,16 @@ if (JWT_TOKEN) {
 
 setRpcUrls({
   "arb": ["https://arbitrum-one-rpc.publicnode.com"],
-  "eth": ["https://cloudflare-eth.com"],
+  "eth": ["https://ethereum-rpc.publicnode.com"],
+  "bsc": ["https://bsc-rpc.publicnode.com"],
+  "avax": ["https://avalanche-c-chain-rpc.publicnode.com"],
+  "base": ["https://base-rpc.publicnode.com"],
+  "pol": ["https://polygon-bor-rpc.publicnode.com"],
+  "gnosis": ["https://gnosis-rpc.publicnode.com"],
+  "op": ["https://optimism-rpc.publicnode.com"],
+  "bera": ["https://berachain-rpc.publicnode.com"],
+  "tron": ["https://tron-rpc.publicnode.com"],
+  "sol": ["https://solana-rpc.publicnode.com"],
 });
 
 console.log(NetworkRpcUrlsMap);
