@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hyperliquid Demo
 
-## Getting Started
+A runnable example that uses the [StableFlow AI SDK](https://github.com/stableflow/stableflow-ai-sdk) **Hyperliquid** service to deposit tokens from EVM chains into Hyperliquid. The destination is **USDC on Arbitrum**; the app uses `Hyperliquid.quote`, `Hyperliquid.transfer`, `Hyperliquid.deposit`, and `Hyperliquid.getStatus`.
 
-First, run the development server:
+## Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js >= 16
+- npm / yarn / pnpm
+- [JWT token](https://app.stableflow.ai/apply) for the StableFlow API
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Running from the SDK repo**: This example depends on the SDK via `file:../..`. From the **repository root**, run `npm run build` (or `pnpm build`) to build the SDK before installing and running the demo.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Install dependencies**
 
-## Learn More
+   ```bash
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Configure environment**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   cp env.template .env.local
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   Edit `.env.local` and set:
 
-## Deploy on Vercel
+   - `NEXT_PUBLIC_STABLEFLOW_API_URL` — default `https://api.stableflow.ai`
+   - `NEXT_PUBLIC_STABLEFLOW_JWT_TOKEN` — your JWT token (required)
+   - `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` — optional, for WalletConnect EVM wallets
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Run the app**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+## What This Demo Does
+
+- **Quote**: Select a source token from `HyperliquidFromTokens` (EVM only in this demo), enter amount (≥ `HyperliuquidMinAmount`), and get a quote via `Hyperliquid.quote()`.
+- **Approve**: If needed, approve the token for the bridge spender.
+- **Transfer**: Send tokens to the bridge on the source chain with `Hyperliquid.transfer()`.
+- **Deposit**: After switching to Arbitrum, submit the deposit with permit via `Hyperliquid.deposit()` and receive a `depositId`.
+- **History & status**: View deposit history and poll `Hyperliquid.getStatus({ depositId })` for status and destination `txHash`.
+
+## Key Files
+
+| File | Description |
+|------|-------------|
+| `app/page.tsx` | Main flow: token selection, quote, approve, transfer, deposit; uses `HyperliquidFromTokens`, `HyperliuquidToToken`, `HyperliuquidMinAmount` |
+| `app/history/page.tsx` | Deposit history list and “Get status” using `Hyperliquid.getStatus({ depositId })` |
+| `stores/history.ts` | Local store for deposit IDs and quote snapshots |
+| `providers/stableflow.tsx` | Sets `OpenAPI.BASE` and `OpenAPI.TOKEN` from env |
+| `providers/evm-wallet.tsx` | EVM wallet connection and chain switching |
+
+## SDK Documentation
+
+- **Hyperliquid service**: [README – Hyperliquid Service](../../README.md#hyperliquid-service)
+- **Developer guide**: [DEVELOPER_GUIDE – Hyperliquid & Hyperliquid Demo](../../DEVELOPER_GUIDE.md#hyperliquid)
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org) (App Router)
+- [StableFlow AI SDK](https://www.npmjs.com/package/stableflow-ai-sdk)
+- EVM wallet (e.g. MetaMask / WalletConnect)

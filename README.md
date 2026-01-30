@@ -344,6 +344,8 @@ Use `getAllQuote` to compare all available routes and select the best one for yo
 
 The Hyperliquid service enables depositing tokens from multiple source chains into Hyperliquid. The destination is fixed as **USDC on Arbitrum**; the SDK uses the OneClick bridge under the hood to swap/bridge from your chosen source token to Arbitrum USDC, then submits a deposit with permit to the Hyperliquid deposit API.
 
+> **Demo**: A runnable example is in [`examples/hyperliquid-demo/`](examples/hyperliquid-demo/) — Next.js app with quote, transfer, deposit, and status/history. Run with `npm run build && cd examples/hyperliquid-demo && npm install && npm run dev` (see [examples/hyperliquid-demo/README.md](examples/hyperliquid-demo/README.md)).
+
 **Exports:**
 
 - `Hyperliquid` – singleton service instance
@@ -378,18 +380,24 @@ import {
   HyperliuquidToToken,
   HyperliuquidMinAmount,
   OpenAPI,
+  EVMWallet
 } from 'stableflow-ai-sdk';
 import Big from 'big.js';
 
-OpenAPI.BASE = 'https://api.stableflow.ai';
 OpenAPI.TOKEN = 'your-JWT';
+
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+const wallet = new EVMWallet(provider, signer);
+
+const account = await signer.getAddress();
 
 // 1. Quote (dry: false to get deposit address for transfer)
 const quoteRes = await Hyperliquid.quote({
   dry: false,
   slippageTolerance: 0.05,
-  refundTo: evmAddress,
-  recipient: evmAddress,
+  refundTo: account,
+  recipient: account,
   wallet,
   fromToken: selectedFromToken,
   prices: {},
@@ -400,17 +408,21 @@ const quote = quoteRes.quote;
 
 // 2. Transfer on source chain
 const txhash = await Hyperliquid.transfer({
+  // wallet is the wallet on the source chain
   wallet,
-  evmWallet,
-  evmWalletAddress,
+  // evmWallet is the wallet used for the deposit operation
+  // For simplicity in this example, we use the same wallet
+  // This means the source chain is also an EVM chain
+  evmWallet: wallet,
+  evmWalletAddress: account,
   quote,
 });
 
 // 3. Submit deposit (after switching to Arbitrum if needed)
 const depositRes = await Hyperliquid.deposit({
   wallet,
-  evmWallet,
-  evmWalletAddress,
+  evmWallet: wallet,
+  evmWalletAddress: account,
   quote,
   txhash,
 });
