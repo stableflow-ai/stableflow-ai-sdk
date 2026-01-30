@@ -5,7 +5,8 @@ import chains from "./chains";
 export const usdc = {
   symbol: "USDC",
   decimals: 6,
-  icon: "/usdc.png"
+  icon: "/usdc.png",
+  name: "USD Coin",
 };
 
 export const usdcChains: Record<string, TokenConfig> = {

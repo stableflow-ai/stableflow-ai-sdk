@@ -1,16 +1,36 @@
-export const chainsRpcUrls: Record<string, string> = {
-  "Ethereum": "https://eth.merkle.io",
-  "Arbitrum": "https://arb1.arbitrum.io/rpc",
-  "BNB Chain": "https://56.rpc.thirdweb.com",
-  "Avalanche": "https://api.avax.network/ext/bc/C/rpc",
-  "Base": "https://mainnet.base.org",
-  "Polygon": "https://polygon-rpc.com",
-  "Gnosis": "https://rpc.gnosischain.com",
-  "Optimism": "https://mainnet.optimism.io",
-  "Berachain": "https://rpc.berachain.com",
-  "Tron": "https://api.trongrid.io",
-  "Aptos": "https://api.mainnet.aptoslabs.com/v1",
-  "Solana": "https://mainnet.helius-rpc.com/?api-key=28fc7f18-acf0-48a1-9e06-bd1b6cba1170",
-  "Near": "https://nearinner.deltarpc.com",
-  "X Layer": "https://rpc.xlayer.tech",
+export const NetworkRpcUrlsMap: Record<string, string[]> = {
+  "eth": ["https://eth.merkle.io"],
+  "arb": ["https://arb1.arbitrum.io/rpc"],
+  "bsc": ["https://56.rpc.thirdweb.com"],
+  "avax": ["https://api.avax.network/ext/bc/C/rpc"],
+  "base": ["https://mainnet.base.org"],
+  "pol": ["https://polygon-rpc.com"],
+  "gnosis": ["https://rpc.gnosischain.com"],
+  "op": ["https://mainnet.optimism.io"],
+  "bera": ["https://rpc.berachain.com"],
+  "tron": ["https://api.trongrid.io"],
+  "aptos": ["https://api.mainnet.aptoslabs.com/v1"],
+  "sol": ["https://solana-rpc.publicnode.com"],
+  "near": ["https://nearinner.deltarpc.com"],
+  "xlayer": ["https://rpc.xlayer.tech"],
+  "plasma": ["https://rpc.plasma.to"],
+};
+
+export const getRpcUrls = (blockchain: string): string[] => {
+  return NetworkRpcUrlsMap[blockchain] || [];
+};
+
+export const setRpcUrls = (urls: Record<string, string[]>) => {
+  for (const blockchain in urls) {
+    const prev = NetworkRpcUrlsMap[blockchain] ?? [];
+    const next = urls[blockchain];
+    for (let i = next.length - 1; i >= 0; i--) {
+      const rpc = next[i];
+      if (prev.some((_rpc) => _rpc.toLowerCase() === rpc.toLowerCase())) {
+        continue;
+      }
+      prev.unshift(rpc);
+    }
+  }
+  return NetworkRpcUrlsMap;
 };

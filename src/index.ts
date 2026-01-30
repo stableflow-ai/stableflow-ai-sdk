@@ -23,6 +23,20 @@ export type { TransactionDetails } from './models/TransactionDetails';
 
 // Export main service
 export { SFA, GetAllQuoteParams } from './services/SFA';
+export {
+  Hyperliquid,
+  HyperliquidFromTokens,
+  HyperliuquidToToken,
+  HyperliuquidMinAmount,
+  HyperliquidQuoteParams,
+  HyperliquidTransferParams,
+  HyperliquidDepositParams,
+  HyperliquidGetStatusParams,
+  HyperliquidDepositResponse,
+  HyperliquidDepositStatusResponse,
+  HyperliquidDepositStatusResponseData,
+  HyperliquidDepositResponseData,
+} from './services/Hyperliquid';
 
 // Export tokens
 export type { TokenConfig } from './models/Token';
@@ -39,6 +53,6 @@ export { AptosWallet } from './wallets/aptos';
 
 export { Service } from './core/Service';
 export { ServiceType } from './core/Service';
-export { chainsRpcUrls } from './wallets/config/rpcs';
+export { NetworkRpcUrlsMap, getRpcUrls, setRpcUrls } from './wallets/config/rpcs';
 
 export { TransactionStatus } from './models/Status';

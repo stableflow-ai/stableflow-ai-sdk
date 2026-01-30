@@ -101,7 +101,7 @@ export const TransactionHistory: React.FC = () => {
                   className="btn-remove"
                   disabled={loading[tx.id]}
                 >
-                  {loading[tx.id] ? "Loading..." : "Quote Result"}
+                  {loading[tx.id] ? "Loading..." : "Fetch Result"}
                 </button>
               )
             }

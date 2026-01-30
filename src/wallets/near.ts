@@ -4,14 +4,14 @@ import { getPrice } from "../utils/price";
 import { numberRemoveEndZero } from "../utils/number";
 import { SendType } from "../core/Send";
 import { Service, type ServiceType } from "../core/Service";
-import { chainsRpcUrls } from "./config/rpcs";
+import { getRpcUrls } from "./config/rpcs";
 
 export default class NearWallet {
   private selector: any;
   private rpcUrl: string;
   constructor(_selector: any) {
     this.selector = _selector;
-    this.rpcUrl = chainsRpcUrls["Near"];
+    this.rpcUrl = getRpcUrls("near")[0];
   }
 
   private async query(contractId: string, methodName: string, args: any = {}) {

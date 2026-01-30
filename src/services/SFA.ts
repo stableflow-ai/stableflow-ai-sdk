@@ -17,6 +17,7 @@ import { WalletConfig } from '../models/Wallet';
 import Big from 'big.js';
 import { tokens } from '../wallets/config/tokens';
 import { TransactionStatus } from '../models/Status';
+import { formatQuoteError } from '../utils/error';
 
 export interface GetAllQuoteParams {
     singleService?: ServiceType;
@@ -30,10 +31,16 @@ export interface GetAllQuoteParams {
     amountWei: string;
     slippageTolerance: number;
     minInputAmount?: string;
-    appFees?: { recipient: string; fee: number; }[];
+    oneclickParams?: {
+        appFees?: { recipient: string; fee: number; }[];
+        // default is EXACT_INPUT
+        swapType?: "EXACT_INPUT" | "EXACT_OUTPUT";
+        // default is true
+        isProxy?: boolean;
+    };
 }
 
-const submitOneclickDepositTx = (
+export const submitOneclickDepositTx = (
     requestBody: SubmitDepositTxRequest,
 ): CancelablePromise<SubmitDepositTxResponse> => {
     return __request(OpenAPI, {
@@ -48,7 +55,7 @@ const submitOneclickDepositTx = (
     });
 }
 
-const submitOthersTx = (
+export const submitOthersTx = (
     requestBody: {
         address: string;
         amount?: string;
@@ -212,7 +219,9 @@ export class SFA {
                 _params.destinationAsset = params.toToken.assetId;
                 _params.amount = params.amountWei;
                 _params.refundType = "ORIGIN_CHAIN";
-                _params.appFees = params.appFees;
+                _params.appFees = params.oneclickParams?.appFees;
+                _params.swapType = params.oneclickParams?.swapType;
+                _params.isProxy = params.oneclickParams?.isProxy;
             }
             if (service === Service.Usdt0) {
                 _params.originChain = params.fromToken.chainName;
@@ -248,49 +257,6 @@ export class SFA {
             }
         }
 
-        const formatQuoteError = (service: ServiceType, error: any) => {
-            const defaultErrorMessage = "Failed to get quote, please try again later";
-            if (service === Service.OneClick) {
-                const getQuoteErrorMessage = (): { message: string; sourceMessage: string; } => {
-                    const _messageResult = {
-                        message: defaultErrorMessage,
-                        sourceMessage: error?.response?.data?.message || defaultErrorMessage,
-                    };
-                    if (
-                        error?.response?.data?.message &&
-                        error?.response?.data?.message !== "Internal server error"
-                    ) {
-                        // quote failed, maybe out of liquidity
-                        if (error?.response?.data?.message === "Failed to get quote") {
-                            _messageResult.message = "Amount exceeds max";
-                            return _messageResult;
-                        }
-                        // Amount is too low for bridge
-                        if (error?.response?.data?.message?.includes("Amount is too low for bridge, try at least")) {
-                            const match = error.response.data.message.match(/try at least\s+(\d+(?:\.\d+)?)/i);
-                            let minimumAmount = match ? match[1] : Big(1).times(10 ** fromToken.decimals).toFixed(0);
-                            minimumAmount = Big(minimumAmount).div(10 ** fromToken.decimals).toFixed(fromToken.decimals);
-                            _messageResult.message = `Amount is too low, at least ${minimumAmount}`;
-                            return _messageResult;
-                        }
-                        return _messageResult;
-                    }
-                    // Unknown error
-                    return _messageResult;
-                };
-                const onclickErrMsg = getQuoteErrorMessage();
-                results.push({
-                    serviceType: service,
-                    error: onclickErrMsg.message,
-                });
-            } else {
-                results.push({
-                    serviceType: service,
-                    error: error?.message || defaultErrorMessage,
-                });
-            }
-        };
-
         if (params.singleService) {
             const quoteService = quoteServices.find((service: any) => service.service === params.singleService);
             if (quoteService) {
@@ -301,7 +267,8 @@ export class SFA {
                         quote: quoteRes,
                     });
                 } catch (error) {
-                    formatQuoteError(quoteService.service, error);
+                    const _err = formatQuoteError(error, { service: quoteService.service, fromToken });
+                    results.push(_err);
                 }
             }
             return results;
@@ -318,7 +285,8 @@ export class SFA {
                     });
                 } catch (error) {
                     console.log("%s quote failed: %o", quoteService.service, error);
-                    formatQuoteError(quoteService.service, error);
+                    const _err = formatQuoteError(error, { service: quoteService.service, fromToken });
+                    results.push(_err);
                 }
             })();
             promises.push(promise);

@@ -5,7 +5,8 @@ import chains from "./chains";
 export const usdt = {
   symbol: "USDT",
   decimals: 6,
-  icon: "/usdt.png"
+  icon: "/usdt.png",
+  name: "Tether USD",
 };
 
 export const usdtChains: Record<string, TokenConfig> = {
@@ -64,7 +65,7 @@ export const usdtChains: Record<string, TokenConfig> = {
     assetId: "nep141:sol-c800a4bd850783ccb82c2b2c7e84175443606352.omft.near",
     contractAddress: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
     ...chains.sol,
-    services: [Service.OneClick],
+    services: [Service.OneClick, Service.Usdt0],
   },
   tron: {
     ...usdt,
@@ -93,5 +94,12 @@ export const usdtChains: Record<string, TokenConfig> = {
     contractAddress: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
     ...chains.xlayer,
     services: [Service.OneClick, Service.Usdt0],
+  },
+  plasma: {
+    ...usdt,
+    assetId: "nep245:v2_1.omni.hot.tg:9745_3aL9skCy1yhPoDB8oKMmRHRN7SJW",
+    contractAddress: "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb",
+    ...chains.plasma,
+    services: [Service.OneClick],
   },
 };

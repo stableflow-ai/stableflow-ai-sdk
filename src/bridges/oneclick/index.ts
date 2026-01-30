@@ -39,6 +39,8 @@ class OneClickService {
     prices: Record<string, string>;
     amountWei: string;
     appFees?: { recipient: string; fee: number; }[];
+    swapType?: "EXACT_INPUT" | "EXACT_OUTPUT";
+    isProxy?: boolean;
   }) {
     const {
       wallet,
@@ -47,14 +49,19 @@ class OneClickService {
       prices,
       amountWei,
       appFees = [],
+      swapType = "EXACT_INPUT",
+      isProxy = true,
       ...restParams
     } = params;
+
+    const isExactOutput = swapType === "EXACT_OUTPUT";
+
     const response: any = await request(OpenAPI, {
       method: 'POST',
       url: '/v0/quote',
       body: {
         depositMode: "SIMPLE",
-        swapType: "EXACT_INPUT",
+        swapType,
         depositType: "ORIGIN_CHAIN",
         sessionId: `session_${Date.now()}_${Math.random()
           .toString(36)
@@ -87,7 +94,10 @@ class OneClickService {
         // const bridgeFee = BridgeFee.reduce((acc, item) => {
         //   return acc.plus(Big(item.fee).div(100));
         // }, Big(0)).toFixed(2) + "%";
-        const netFee = Big(params.amount).div(10 ** params.fromToken.decimals).minus(Big(res.data?.quote?.amountOut || 0).div(10 ** params.toToken.decimals));
+        let netFee = Big(params.amount).div(10 ** params.fromToken.decimals).minus(Big(res.data?.quote?.amountOut || 0).div(10 ** params.toToken.decimals));
+        if (isExactOutput) {
+          netFee = Big(res.data?.quote?.amountIn || 0).div(10 ** params.fromToken.decimals).minus(Big(params.amount).div(10 ** params.toToken.decimals));
+        }
         const bridgeFeeValue = BridgeFee.reduce((acc, item) => {
           return acc.plus(Big(params.amount).div(10 ** params.fromToken.decimals).times(Big(item.fee).div(10000)));
         }, Big(0));
@@ -125,14 +135,14 @@ class OneClickService {
       }
 
       const proxyAddress = ONECLICK_PROXY[params.fromToken.chainName];
-      if (proxyAddress) {
+      if (proxyAddress && isProxy) {
         const proxyResult = await params.wallet.quote(Service.OneClick, {
           proxyAddress,
           abi: ONECLICK_PROXY_ABI,
           fromToken: params.fromToken,
           refundTo: params.refundTo,
           recipient: params.recipient,
-          amountWei: params.amount,
+          amountWei: isExactOutput ? res.data?.quote?.amountIn : params.amount,
           prices: params.prices,
           depositAddress: res.data?.quote?.depositAddress || DefaultAddresses[params.fromToken.chainType as ChainType],
         });

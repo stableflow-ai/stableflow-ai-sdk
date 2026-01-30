@@ -47,18 +47,6 @@ function calculateEstimateTime(originChain: string, destinationChain: string): n
   const destinationTime = destinationBlockTime * (2 + dvnCount);
   const totalTime = Math.ceil(sourceTime + destinationTime);
 
-  console.log(`USDT0 estimate time calculation:`, {
-    originChain,
-    destinationChain,
-    sourceBlockTime,
-    blockConfirmations,
-    destinationBlockTime,
-    dvnCount,
-    sourceTime,
-    destinationTime,
-    totalTime,
-  });
-
   return totalTime;
 }
 
@@ -117,6 +105,8 @@ class Usdt0Service {
         isMultiHopComposer,
         isOriginLegacy,
         isDestinationLegacy,
+        originLayerzero,
+        destinationLayerzero,
       });
 
       result.estimateTime = estimateTime;
@@ -160,6 +150,8 @@ class Usdt0Service {
         isMultiHopComposer,
         isOriginLegacy,
         isDestinationLegacy,
+        originLayerzero,
+        destinationLayerzero,
       });
 
       result.estimateTime = estimateTime;
@@ -186,7 +178,11 @@ class Usdt0Service {
         isMultiHopComposer,
         isOriginLegacy,
         isDestinationLegacy,
+        originLayerzero,
+        destinationLayerzero,
       });
+
+      result.estimateTime = estimateTime;
 
       return result;
     }

@@ -5,13 +5,12 @@ import Big from "big.js";
 import { ethers } from "ethers";
 import { Options } from "@layerzerolabs/lz-v2-utilities";
 import { addressToBytes32 } from "../utils/address";
-import { USDT0_LEGACY_FEE } from "../bridges/usdt0/config";
+import { LZ_RECEIVE_VALUE, USDT0_LEGACY_MESH_TRANSFTER_FEE } from "../bridges/usdt0/config";
 import cctpService from "../bridges/cctp";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { SendType } from "../core/Send";
 import { Service, type ServiceType } from "../core/Service";
-import { chainsRpcUrls } from "./config/rpcs";
+import { getHopMsgFee } from "../bridges/usdt0/hop-composer";
+import { getDestinationAssociatedTokenAddress } from "./utils/solana";
 
 const DEFAULT_GAS_LIMIT = 100000n;
 
@@ -50,10 +49,11 @@ export default class EVMWallet {
 
   async getBalance(token: any, account: string) {
     try {
-      // Use token's rpcUrl if available, otherwise fall back to current provider
+      // Use token's rpcUrls if available, otherwise fall back to current provider
       let provider = this.provider;
-      if (token.rpcUrl) {
-        provider = new ethers.JsonRpcProvider(token.rpcUrl);
+      if (token.rpcUrls) {
+        const providers = token.rpcUrls.map((url: string) => new ethers.JsonRpcProvider(url));
+        provider = new ethers.FallbackProvider(providers);
       }
 
       if (token.symbol === "eth" || token.symbol === "ETH" || token.symbol === "native") {
@@ -234,6 +234,7 @@ export default class EVMWallet {
       isMultiHopComposer,
       isOriginLegacy,
       isDestinationLegacy,
+      originLayerzero,
     } = params;
 
     const result: any = {
@@ -258,7 +259,7 @@ export default class EVMWallet {
 
     // 1. check if need approve
     const approvalRequired = await oftContractRead.approvalRequired();
-    console.log("%cApprovalRequired: %o", "background:blue;color:white;", approvalRequired);
+    // console.log("%cApprovalRequired: %o", "background:blue;color:white;", approvalRequired);
 
     // If approval is required, check actual allowance
     if (approvalRequired) {
@@ -276,13 +277,26 @@ export default class EVMWallet {
       }
     }
 
+    const lzReceiveOptionGas = isOriginLegacy ? originLayerzero.lzReceiveOptionGasLegacy : originLayerzero.lzReceiveOptionGas;
+    let lzReceiveOptionValue = 0;
+
+    const destATA = await getDestinationAssociatedTokenAddress({
+      recipient,
+      toToken,
+    });
+    if (destATA.needCreateTokenAccount) {
+      lzReceiveOptionValue = LZ_RECEIVE_VALUE[toToken.chainName] || 0;
+    }
+
     // 2. quote send
     const sendParam: any = {
       dstEid: dstEid,
       to: addressToBytes32(toToken.chainType, recipient),
       amountLD: amountWei,
       minAmountLD: 0n,
-      extraOptions: "0x0003",
+      extraOptions: Options.newOptions()
+        .addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue)
+        .toHex(),
       composeMsg: "0x",
       oftCmd: "0x"
     };
@@ -292,27 +306,31 @@ export default class EVMWallet {
       sendParam.dstEid = multiHopComposer.eid;
       sendParam.to = addressToBytes32("evm", multiHopComposer.oftMultiHopComposer);
 
-      //                                                                       gas_limt,   msg_value
-      sendParam.extraOptions = Options.newOptions().addExecutorLzReceiveOption(250000000n, 0n).toHex();
+      const composeMsgSendParam = {
+        dstEid,
+        to: addressToBytes32(toToken.chainType, recipient),
+        amountLD: sendParam.amountLD,
+        minAmountLD: sendParam.minAmountLD,
+        extraOptions: Options.newOptions()
+          .addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue)
+          .toHex(),
+        composeMsg: "0x",
+        oftCmd: "0x",
+      };
+      const hopMsgFee = await getHopMsgFee({
+        sendParam: composeMsgSendParam,
+        toToken,
+      });
+
+      sendParam.extraOptions = Options.newOptions()
+        .addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue)
+        .addExecutorComposeOption(0, originLayerzero.composeOptionGas || 800000, hopMsgFee)
+        .toHex();
       const abiCoder = ethers.AbiCoder.defaultAbiCoder();
       sendParam.composeMsg = abiCoder.encode(
         ["tuple(uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd)"],
-        [[
-          dstEid,
-          addressToBytes32(toToken.chainType, recipient),
-          sendParam.amountLD,
-          sendParam.minAmountLD,
-          "0x",
-          "0x",
-          "0x"
-        ]]
+        [Object.values(composeMsgSendParam)]
       );
-    }
-
-    if (isDestinationLegacy) {
-      // get Legacy Mesh Fee
-      // 0.0003
-      result.fees.legacyMeshFeeUsd = numberRemoveEndZero(Big(amountWei || 0).div(10 ** params.fromToken.decimals).times(0.0003).toFixed(params.fromToken.decimals));
     }
 
     const oftData = await oftContractRead.quoteOFT.staticCall(sendParam);
@@ -321,7 +339,7 @@ export default class EVMWallet {
 
     const msgFee = await oftContractRead.quoteSend.staticCall(sendParam, payInLzToken);
     result.estimateSourceGas = msgFee[0];
-    console.log("%cMsgFee: %o", "background:blue;color:white;", msgFee);
+    // console.log("%cMsgFee: %o", "background:blue;color:white;", msgFee);
 
     result.sendParam = {
       contract: oftContract,
@@ -337,16 +355,20 @@ export default class EVMWallet {
       ],
     };
 
-    console.log("%cParams: %o", "background:blue;color:white;", result.sendParam);
+    // console.log("%cParams: %o", "background:blue;color:white;", result.sendParam);
 
     // 3. estimate gas
     const nativeFeeUsd = Big(msgFee[0]?.toString() || 0).div(10 ** fromToken.nativeToken.decimals).times(getPrice(prices, fromToken.nativeToken.symbol));
+    result.fees.nativeFee = numberRemoveEndZero(Big(msgFee[0]?.toString() || 0).div(10 ** fromToken.nativeToken.decimals).toFixed(fromToken.nativeToken.decimals));
     result.fees.nativeFeeUsd = numberRemoveEndZero(Big(nativeFeeUsd).toFixed(20));
     result.fees.lzTokenFeeUsd = numberRemoveEndZero(Big(msgFee[1]?.toString() || 0).div(10 ** fromToken.decimals).toFixed(20));
-    if (!isOriginLegacy && isDestinationLegacy) {
-      result.fees.legacyMeshFeeUsd = numberRemoveEndZero(Big(amountWei || 0).div(10 ** fromToken.decimals).times(USDT0_LEGACY_FEE).toFixed(fromToken.decimals));
+
+    // 0.03% fee for Legacy Mesh transfers only (native USDT0 transfers are free)
+    if (isOriginLegacy || isDestinationLegacy) {
+      result.fees.legacyMeshFeeUsd = numberRemoveEndZero(Big(amountWei || 0).div(10 ** params.fromToken.decimals).times(USDT0_LEGACY_MESH_TRANSFTER_FEE).toFixed(params.fromToken.decimals));
       result.outputAmount = numberRemoveEndZero(Big(Big(amountWei || 0).div(10 ** params.fromToken.decimals)).minus(result.fees.legacyMeshFeeUsd || 0).toFixed(params.fromToken.decimals, 0));
     }
+
     try {
       const gasLimit = await oftContract.send.estimateGas(...result.sendParam.param);
       const { usd, wei } = await this.getEstimateGas({
@@ -469,21 +491,13 @@ export default class EVMWallet {
 
     let realRecipient = recipient;
     // get ATA address
-    if (toToken.chainType === "sol") {
-      const connection = new Connection(chainsRpcUrls.Solana);
-
-      const wallet = new PublicKey(recipient);
-      const USDC_MINT = new PublicKey(toToken.contractAddress);
-
-      const ata = getAssociatedTokenAddressSync(USDC_MINT, wallet);
-
-      const accountInfo = await connection.getAccountInfo(ata);
-
-      if (!accountInfo) {
-        result.needCreateTokenAccount = true;
-      } else {
-        realRecipient = ata.toBase58();
-      }
+    const destATA = await getDestinationAssociatedTokenAddress({
+      recipient,
+      toToken,
+    });
+    result.needCreateTokenAccount = destATA.needCreateTokenAccount;
+    if (destATA.associatedTokenAddress) {
+      realRecipient = destATA.associatedTokenAddress;
     }
 
     // 1. get user nonce
@@ -675,6 +689,12 @@ export default class EVMWallet {
     };
 
     return result;
+  }
+
+  async signTypedData(params: any) {
+    const { domain, types, values } = params;
+
+    return await this.signer?.signTypedData(domain, types, values);
   }
 }
 
