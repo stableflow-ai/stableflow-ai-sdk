@@ -10,6 +10,7 @@ A comprehensive guide for developers to integrate cross-chain token bridging int
 - [Wallet Integration](#wallet-integration)
 - [Token Configuration](#token-configuration)
 - [Bridge Services](#bridge-services)
+  - [Hyperliquid](#hyperliquid)
 - [Working Examples](#working-examples)
   - [Hyperliquid Demo](#hyperliquid-demo)
 - [Best Practices](#best-practices)
@@ -549,10 +550,9 @@ Deposit from multiple source chains into **Hyperliquid**. Destination is fixed a
 
 1. User selects source token from `HyperliquidFromTokens` and amount (≥ `HyperliuquidMinAmount`).
 2. Call `Hyperliquid.quote(params)` — use `dry: true` for preview, then `dry: false` to get `depositAddress`.
-3. If `quote.needApprove`, have the user approve the token for `quote.approveSpender`.
-4. Call `Hyperliquid.transfer({ wallet, quote, evmWallet, evmWalletAddress })`; receive `txhash`.
-5. Optionally switch wallet to Arbitrum, then call `Hyperliquid.deposit({ ...transferParams, txhash })` to get `depositId`.
-6. Poll or check with `Hyperliquid.getStatus({ depositId })` for `status` and `txHash`.
+3. Call `Hyperliquid.transfer({ wallet, quote, evmWallet, evmWalletAddress })`; receive `txhash`.
+4. Optionally switch wallet to Arbitrum, then call `Hyperliquid.deposit({ ...transferParams, txhash })` to get `depositId`.
+5. Poll or check with `Hyperliquid.getStatus({ depositId })` for `status` and `txHash`.
 
 #### Example
 
@@ -563,18 +563,24 @@ import {
   HyperliuquidToToken,
   HyperliuquidMinAmount,
   OpenAPI,
+  EVMWallet
 } from 'stableflow-ai-sdk';
 import Big from 'big.js';
 
-OpenAPI.BASE = 'https://api.stableflow.ai';
 OpenAPI.TOKEN = 'your-JWT';
+
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+const wallet = new EVMWallet(provider, signer);
+
+const account = await signer.getAddress();
 
 // 1. Quote (dry: false to get deposit address for transfer)
 const quoteRes = await Hyperliquid.quote({
   dry: false,
   slippageTolerance: 0.05,
-  refundTo: evmAddress,
-  recipient: evmAddress,
+  refundTo: account,
+  recipient: account,
   wallet,
   fromToken: selectedFromToken,
   prices: {},
@@ -583,34 +589,29 @@ const quoteRes = await Hyperliquid.quote({
 if (quoteRes.error || !quoteRes.quote) throw new Error(quoteRes.error || 'No quote');
 const quote = quoteRes.quote;
 
-// 2. Approve if needed
-if (quote.needApprove) {
-  await wallet.approve({
-    contractAddress: fromToken.contractAddress,
-    spender: quote.approveSpender,
-    amountWei: quote.quote.amountIn,
-  });
-}
-
-// 3. Transfer on source chain
+// 2. Transfer on source chain
 const txhash = await Hyperliquid.transfer({
+  // wallet is the wallet on the source chain
   wallet,
-  evmWallet,
-  evmWalletAddress,
+  // evmWallet is the wallet used for the deposit operation
+  // For simplicity in this example, we use the same wallet
+  // This means the source chain is also an EVM chain
+  evmWallet: wallet,
+  evmWalletAddress: account,
   quote,
 });
 
-// 4. Submit deposit (after switching to Arbitrum if needed)
+// 3. Submit deposit (after switching to Arbitrum if needed)
 const depositRes = await Hyperliquid.deposit({
   wallet,
-  evmWallet,
-  evmWalletAddress,
+  evmWallet: wallet,
+  evmWalletAddress: account,
   quote,
   txhash,
 });
 const depositId = depositRes.data?.depositId;
 
-// 5. Check status
+// 4. Check status
 const statusRes = await Hyperliquid.getStatus({ depositId: String(depositId) });
 // statusRes.data.status, statusRes.data.txHash
 // status: type HyperliquidDepositStatus = "PROCESSING" | "SUCCESS" | "REFUNDED" | "FAILED";
@@ -1150,15 +1151,17 @@ This is done via the `appFees` parameter, which lets you define who gets paid an
 
 ### How it works
 
-When you request a quote via `getAllQuote()`, you can include an `appFees` array into oneclickParams:
+When you request a quote via `getAllQuote()`, you can include an `appFees` array into `oneclickParams`:
 
 ```ts
-appFees: [
-  {
-    recipient: "yourapp.near",
-    fee: 100, // 1%
-  }
-]
+oneclickParams: {
+  appFees: [
+    {
+      recipient: "yourapp.near",
+      fee: 100, // 1%
+    }
+  ]
+}
 ```
 
 This means:
