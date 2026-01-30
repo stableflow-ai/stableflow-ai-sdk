@@ -177,8 +177,6 @@ const quotes = await SFA.getAllQuote({
         recipient: "stableflow.near",
         // Fee rate, as a percentage of the amount. 100 = 1%, 1 = 0.01%
         fee: 100,
-         // default is true
-        isProxy: true;
       },
     ],
   },
