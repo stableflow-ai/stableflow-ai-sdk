@@ -31,6 +31,8 @@ export interface GetAllQuoteParams {
     amountWei: string;
     slippageTolerance: number;
     minInputAmount?: string;
+    // @deprecated please use oneclickParams instead
+    appFees?: { recipient: string; fee: number; }[];
     oneclickParams?: {
         appFees?: { recipient: string; fee: number; }[];
         // default is EXACT_INPUT
@@ -219,7 +221,7 @@ export class SFA {
                 _params.destinationAsset = params.toToken.assetId;
                 _params.amount = params.amountWei;
                 _params.refundType = "ORIGIN_CHAIN";
-                _params.appFees = params.oneclickParams?.appFees;
+                _params.appFees = params.oneclickParams?.appFees || params.appFees;
                 _params.swapType = params.oneclickParams?.swapType;
                 _params.isProxy = params.oneclickParams?.isProxy;
             }
