@@ -17,7 +17,6 @@ cp env.template .env
 
 Edit `.env`:
 ```env
-VITE_STABLEFLOW_API_URL=https://api.stableflow.ai
 VITE_STABLEFLOW_JWT_TOKEN=your_jwt_token_here
 VITE_WALLET_CONNECT_PROJECT_ID=your_wallet_connect_project_id
 ```
