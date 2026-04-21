@@ -298,19 +298,6 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
             const body = getRequestBody(options);
             const headers = await getHeaders(config, options, formData);
 
-            // Detailed request logging
-            console.log('\n🔵 ========== API Request ==========');
-            console.log('Method:', options.method);
-            console.log('URL:', url);
-            console.log('Headers:', JSON.stringify(headers, null, 2));
-            if (body) {
-                console.log('Body:', JSON.stringify(body, null, 2));
-            }
-            if (formData) {
-                console.log('FormData:', formData);
-            }
-            console.log('====================================\n');
-
             if (!onCancel.isCancelled) {
                 const response = await sendRequest<T>(config, options, url, body, formData, headers, onCancel, axiosClient);
                 const responseBody = getResponseBody(response);
@@ -324,28 +311,11 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
                     body: responseHeader ?? responseBody,
                 };
 
-                // Detailed response logging
-                console.log('\n🟢 ========== API Response ==========');
-                console.log('Status:', response.status, response.statusText);
-                console.log('Response Headers:', JSON.stringify(response.headers, null, 2));
-                console.log('Response Body:', JSON.stringify(responseBody, null, 2));
-                console.log('=====================================\n');
-
                 catchErrorCodes(options, result);
 
                 resolve(result.body);
             }
         } catch (error) {
-            // Detailed error logging
-            console.log('\n🔴 ========== API Error ==========');
-            console.log('Error:', error);
-            if (error instanceof ApiError) {
-                console.log('Status:', error.status);
-                console.log('Status Text:', error.statusText);
-                console.log('URL:', error.url);
-                console.log('Body:', JSON.stringify(error.body, null, 2));
-            }
-            console.log('==================================\n');
             reject(error);
         }
     });

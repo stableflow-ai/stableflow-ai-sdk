@@ -1,7 +1,18 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
+  plugins: [
+    nodePolyfills({
+      include: ["buffer", "process", "stream", "util"],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true
+      }
+    })
+  ],
   server: {
     port: 3000,
     open: true,
@@ -17,6 +28,18 @@ export default defineConfig({
   },
   define: {
     'process.env': {},
+    "process.browser": "true",
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ["buffer", "process", "stream", "util", "near-api-js"],
+    esbuildOptions: {
+      define: {
+        global: "globalThis",
+        "process.env": "{}",
+        "process.browser": "true"
+      }
+    },
   },
 });
 

@@ -57,8 +57,12 @@ export default function Home() {
     };
   };
   const { runAsync: handleQuote, loading: quoting } = useRequest(async (dry?: boolean) => {
-    setQuote(null);
+    if (dry) {
+      setQuote(null);
+    }
+
     if (!wallet?.account || !fromToken || !amount || Big(amount).lte(0)) {
+      setQuote(null);
       return;
     }
 

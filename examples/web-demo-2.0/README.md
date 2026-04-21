@@ -25,7 +25,6 @@ npm install
 
 2. Create a `.env` file:
 ```env
-VITE_STABLEFLOW_API_URL=https://api.stableflow.ai
 VITE_STABLEFLOW_JWT_TOKEN=your_jwt_token_here
 ```
 
