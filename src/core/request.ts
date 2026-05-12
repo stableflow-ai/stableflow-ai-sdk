@@ -291,6 +291,13 @@ export const catchErrorCodes = (options: ApiRequestOptions, result: ApiResult): 
  * @throws ApiError
  */
 export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, axiosClient: AxiosInstance = axios): CancelablePromise<T> => {
+    const _log = (...args: any) => {
+        if (!config.DEBUG) {
+            return;
+        }
+        console.log(...args);
+    };
+
     return new CancelablePromise(async (resolve, reject, onCancel) => {
         try {
             const url = getUrl(config, options);
@@ -299,17 +306,17 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
             const headers = await getHeaders(config, options, formData);
 
             // Detailed request logging
-            console.log('\n🔵 ========== API Request ==========');
-            console.log('Method:', options.method);
-            console.log('URL:', url);
-            console.log('Headers:', JSON.stringify(headers, null, 2));
+            _log('\n🔵 ========== API Request ==========');
+            _log('Method:', options.method);
+            _log('URL:', url);
+            _log('Headers:', JSON.stringify(headers, null, 2));
             if (body) {
-                console.log('Body:', JSON.stringify(body, null, 2));
+                _log('Body:', JSON.stringify(body, null, 2));
             }
             if (formData) {
-                console.log('FormData:', formData);
+                _log('FormData:', formData);
             }
-            console.log('====================================\n');
+            _log('====================================\n');
 
             if (!onCancel.isCancelled) {
                 const response = await sendRequest<T>(config, options, url, body, formData, headers, onCancel, axiosClient);
@@ -325,11 +332,11 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
                 };
 
                 // Detailed response logging
-                console.log('\n🟢 ========== API Response ==========');
-                console.log('Status:', response.status, response.statusText);
-                console.log('Response Headers:', JSON.stringify(response.headers, null, 2));
-                console.log('Response Body:', JSON.stringify(responseBody, null, 2));
-                console.log('=====================================\n');
+                _log('\n🟢 ========== API Response ==========');
+                _log('Status:', response.status, response.statusText);
+                _log('Response Headers:', JSON.stringify(response.headers, null, 2));
+                _log('Response Body:', JSON.stringify(responseBody, null, 2));
+                _log('=====================================\n');
 
                 catchErrorCodes(options, result);
 
@@ -337,15 +344,15 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
             }
         } catch (error) {
             // Detailed error logging
-            console.log('\n🔴 ========== API Error ==========');
-            console.log('Error:', error);
+            _log('\n🔴 ========== API Error ==========');
+            _log('Error:', error);
             if (error instanceof ApiError) {
-                console.log('Status:', error.status);
-                console.log('Status Text:', error.statusText);
-                console.log('URL:', error.url);
-                console.log('Body:', JSON.stringify(error.body, null, 2));
+                _log('Status:', error.status);
+                _log('Status Text:', error.statusText);
+                _log('URL:', error.url);
+                _log('Body:', JSON.stringify(error.body, null, 2));
             }
-            console.log('==================================\n');
+            _log('==================================\n');
             reject(error);
         }
     });

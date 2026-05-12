@@ -13,6 +13,7 @@ import { ethers } from 'ethers';
 
 // Configure SDK
 OpenAPI.BASE = 'https://api.stableflow.ai';
+OpenAPI.DEBUG = true;
 
 // JWT Token - Get from https://app.stableflow.ai/
 const JWT_TOKEN = import.meta.env.VITE_STABLEFLOW_JWT_TOKEN;
@@ -22,7 +23,8 @@ if (JWT_TOKEN) {
 }
 
 // Supported networks with USDT info (hardcoded from API)
-// Last updated: 2025-10-28
+// You can get all networks and tokens from: SFA.getTokens();
+// Last updated: 2026-05-12
 const SUPPORTED_NETWORKS = [
     { 
         id: 'eth', 
@@ -71,6 +73,22 @@ const SUPPORTED_NETWORKS = [
         usdtAssetId: 'nep245:v2_1.omni.hot.tg:43114_372BeH7ENZieCaabwkbWkBiTTgXp',
         usdtContract: '0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7',
         decimals: 6
+    },
+    {
+        id: 'gnosis',
+        name: 'Gnosis',
+        chainId: 100,
+        usdtAssetId: 'nep141:gnosis-0x4ecaba5870353805a9f068101a40e0f32ed605c6.omft.near',
+        usdtContract: '0x4ecaba5870353805a9f068101a40e0f32ed605c6',
+        decimals: 6
+    },
+    {
+      id: 'scroll',
+      name: 'Scroll',
+      chainId: 534_352,
+      usdtAssetId: 'nep245:v2_1.omni.hot.tg:534352_4RG3Q2wFsMQmd45m5m89RjsLfupA',
+      usdtContract: '0xf55bec9cafdbe8730f096aa55dad6d22d44099df',
+      decimals: 6
     },
 ];
 
@@ -130,7 +148,7 @@ const elements = {
 // Initialize app
 async function init() {
     showLoading('Initializing...');
-    
+
     try {
         // Populate network dropdowns with hardcoded data
         populateNetworkSelects();
