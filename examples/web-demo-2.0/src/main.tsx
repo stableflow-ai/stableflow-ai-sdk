@@ -6,6 +6,7 @@ import { OpenAPI, setRpcUrls, NetworkRpcUrlsMap } from 'stableflow-ai-sdk';
 
 // Configure SDK
 OpenAPI.BASE = import.meta.env.VITE_STABLEFLOW_API_URL || 'https://api.stableflow.ai';
+OpenAPI.DEBUG = true;
 const JWT_TOKEN = import.meta.env.VITE_STABLEFLOW_JWT_TOKEN;
 if (JWT_TOKEN) {
   OpenAPI.TOKEN = JWT_TOKEN;

@@ -11,6 +11,7 @@ import type { ApiResult } from './ApiResult';
 import { CancelablePromise } from './CancelablePromise';
 import type { OnCancel } from './CancelablePromise';
 import type { OpenAPIConfig } from './OpenAPI';
+import { cslError, cslInfo, cslSuccess } from '../utils/log';
 
 export const isDefined = <T>(value: T | null | undefined): value is Exclude<T, null | undefined> => {
     return value !== undefined && value !== null;
@@ -159,11 +160,11 @@ export const getHeaders = async (config: OpenAPIConfig, options: ApiRequestOptio
         ...options.headers,
         ...formHeaders,
     })
-    .filter(([_, value]) => isDefined(value))
-    .reduce((headers, [key, value]) => ({
-        ...headers,
-        [key]: String(value),
-    }), {} as Record<string, string>);
+        .filter(([_, value]) => isDefined(value))
+        .reduce((headers, [key, value]) => ({
+            ...headers,
+            [key]: String(value),
+        }), {} as Record<string, string>);
 
     if (isStringWithValue(token)) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -298,6 +299,18 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
             const body = getRequestBody(options);
             const headers = await getHeaders(config, options, formData);
 
+            cslInfo(config.DEBUG, '\n🔵 ========== API Request ==========');
+            cslInfo(config.DEBUG, 'Method:', options.method);
+            cslInfo(config.DEBUG, 'URL:', url);
+            cslInfo(config.DEBUG, 'Headers:', JSON.stringify(headers, null, 2));
+            if (body) {
+                cslInfo(config.DEBUG, 'Body:', JSON.stringify(body, null, 2));
+            }
+            if (formData) {
+                cslInfo(config.DEBUG, 'FormData:', formData);
+            }
+            cslInfo(config.DEBUG, '====================================\n');
+
             if (!onCancel.isCancelled) {
                 const response = await sendRequest<T>(config, options, url, body, formData, headers, onCancel, axiosClient);
                 const responseBody = getResponseBody(response);
@@ -313,9 +326,24 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
 
                 catchErrorCodes(options, result);
 
+                cslSuccess(config.DEBUG, '\n🟢 ========== API Response ==========');
+                cslSuccess(config.DEBUG, 'Status:', response.status, response.statusText);
+                cslSuccess(config.DEBUG, 'Response Headers:', JSON.stringify(response.headers, null, 2));
+                cslSuccess(config.DEBUG, 'Response Body:', JSON.stringify(responseBody, null, 2));
+                cslSuccess(config.DEBUG, '=====================================\n');
+
                 resolve(result.body);
             }
         } catch (error) {
+            cslError(config.DEBUG, '\n🔴 ========== API Error ==========');
+            cslError(config.DEBUG, 'Error:', error);
+            if (error instanceof ApiError) {
+                cslError(config.DEBUG, 'Status:', error.status);
+                cslError(config.DEBUG, 'Status Text:', error.statusText);
+                cslError(config.DEBUG, 'URL:', error.url);
+                cslError(config.DEBUG, 'Body:', JSON.stringify(error.body, null, 2));
+            }
+            cslError(config.DEBUG, '==================================\n');
             reject(error);
         }
     });
