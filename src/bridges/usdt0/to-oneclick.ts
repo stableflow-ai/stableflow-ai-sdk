@@ -3,10 +3,8 @@ import oneClickService, { excludeFees as oneClickExcludeFees } from "../oneclick
 import usdt0Service, { excludeFees as usdt0ExcludeFees } from "../usdt0";
 import Big from "big.js";
 import { MIDDLE_CHAIN_REFOUND_ADDRESS, MIDDLE_TOKEN_CHAIN } from "./config";
-import EVMWallet from "../../wallets/evm";
 import { ExecTime } from "../../utils/exec-time";
 import { OpenAPI } from "../../core/OpenAPI";
-import { evmRpcFallbackProvider } from "../../utils/evm-rpc-providers";
 import { Csl } from "../../utils/log";
 import { numberRemoveEndZero } from "../../utils/number";
 
@@ -14,7 +12,8 @@ export class Usdt0OneClickService {
   public async quote(params: any) {
     const {
       dry,
-      wallets,
+      evmWallet,
+      evmAddress,
       fromToken,
     } = params;
 
@@ -22,10 +21,9 @@ export class Usdt0OneClickService {
     const csl = cs.log;
     const execTime = new ExecTime({ type: "Usdt0OneClickService", logStyle: "lime-700", isDebug: OpenAPI.DEBUG });
 
-    let middleChainWallet = wallets?.evm?.wallet;
+    let middleChainWallet = evmWallet;
     if (!middleChainWallet) {
-      const provider = evmRpcFallbackProvider(fromToken);
-      middleChainWallet = new EVMWallet(provider, {});
+      throw new Error("evmWallet is required");
     }
 
     const usdt0Params = {

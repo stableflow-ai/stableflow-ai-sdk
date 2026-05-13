@@ -1,6 +1,5 @@
 import oneClickService, { excludeFees as oneClickExcludeFees } from "../oneclick";
 import { FraxZeroService, excludeFees as fraxZeroExcludeFees } from ".";
-import EVMWallet from "../../wallets/evm";
 import { FRAXZERO_CONFIG, FRAXZERO_GAS_USED, FRAXZERO_MIDDLE_CHAIN_REFOUND_ADDRESS, FRAXZERO_MIDDLE_TOKEN_FRXUSD, FRAXZERO_MIDDLE_TOKEN_USDC, FRAXZERO_REDEEM_AND_MINT_CONTRACT, FRAXZERO_REDEEM_USDC_CONTRACT } from "./config";
 import { getPrice } from "../../utils/price";
 import { FRAXZERO_REDEEM_MINT_ABI } from "./contract";
@@ -17,6 +16,8 @@ export class OneClick2FraxZeroService extends FraxZeroService {
     const {
       dry,
       wallet,
+      evmWallet,
+      evmAddress,
       amountWei,
       refundTo,
       recipient,
@@ -25,7 +26,6 @@ export class OneClick2FraxZeroService extends FraxZeroService {
       slippageTolerance,
       prices,
       evmGasFees,
-      wallets,
       switchChainAsync,
     } = params;
 
@@ -45,13 +45,13 @@ export class OneClick2FraxZeroService extends FraxZeroService {
 
     const provider = evmRpcFallbackProvider(FRAXZERO_MIDDLE_TOKEN_USDC);
 
-    let middleChainWallet = wallets?.evm?.wallet;
-    let middleChainRecipientAddress = wallets?.evm?.account;
+    let middleChainWallet = evmWallet;
+    let middleChainRecipientAddress = evmAddress;
     if (!middleChainWallet) {
-      middleChainWallet = new EVMWallet(provider, {});
+      throw new Error("evmWallet is required");
     }
     if (!middleChainRecipientAddress) {
-      middleChainRecipientAddress = FRAXZERO_MIDDLE_CHAIN_REFOUND_ADDRESS;
+      throw new Error("evmAddress is required");
     }
 
     let previewMintResult: any;

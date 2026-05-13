@@ -2,31 +2,29 @@ import oneClickService, { excludeFees as oneClickExcludeFees } from "../oneclick
 import usdt0Service, { excludeFees as usdt0ExcludeFees } from "../usdt0";
 import Big from "big.js";
 import { MIDDLE_CHAIN_LAYERZERO_EXECUTOR, MIDDLE_CHAIN_REFOUND_ADDRESS, MIDDLE_TOKEN_CHAIN } from "./config";
-import EVMWallet from "../../wallets/evm";
 import { ExecTime } from "../../utils/exec-time";
 import { OpenAPI } from "../../core/OpenAPI";
-import { evmRpcFallbackProvider } from "../../utils/evm-rpc-providers";
 import { numberRemoveEndZero } from "../../utils/number";
 import { getPrice } from "../../utils/price";
 
 export class OneClickUsdt0Service {
   public async quote(params: any) {
     const {
-      wallets,
+      evmWallet,
+      evmAddress,
       fromToken,
       prices,
     } = params;
 
     const execTime = new ExecTime({ type: "OneClickUsdt0", logStyle: "lime-500", isDebug: OpenAPI.DEBUG });
 
-    let middleChainWallet = wallets?.evm?.wallet;
-    let destinationRecipientAddress = wallets?.evm?.account;
+    let middleChainWallet = evmWallet;
+    let destinationRecipientAddress = evmAddress;
     if (!middleChainWallet) {
-      const provider = evmRpcFallbackProvider(fromToken);
-      middleChainWallet = new EVMWallet(provider, {});
+      throw new Error("evmWallet is required");
     }
     if (!destinationRecipientAddress) {
-      destinationRecipientAddress = MIDDLE_CHAIN_REFOUND_ADDRESS;
+      throw new Error("evmAddress is required");
     }
 
     // First, call the usdt0 quote method

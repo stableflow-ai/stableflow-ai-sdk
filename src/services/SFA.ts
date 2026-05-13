@@ -57,6 +57,16 @@ export interface GetAllQuoteParams {
      */
     wallet: WalletConfig;
     /**
+     * EVM Wallet instance
+     * @description Optional, just required when use Service.Usdt0OneClick or Service.OneClickUsdt0 and Service.FraxZeroOneClick or Service.OneClickFraxZero
+     */
+    evmWallet?: WalletConfig;
+    /**
+     * EVM Address
+     * @description Optional, just required when use Service.Usdt0OneClick or Service.OneClickUsdt0 and Service.FraxZeroOneClick or Service.OneClickFraxZero
+     */
+    evmAddress?: string;
+    /**
      * Recipient address on destination chain
      */
     recipient: string;
@@ -275,6 +285,8 @@ export class SFA {
                 toToken: params.toToken,
                 prices: params.prices,
                 slippageTolerance: params.slippageTolerance,
+                evmWallet: params.evmWallet,
+                evmAddress: params.evmAddress,
             };
 
             if (([
