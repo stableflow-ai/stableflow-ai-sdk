@@ -113,7 +113,7 @@ Retrieves quotes from all supported bridge services (OneClick, CCTP, USDT0) in p
 
 ```typescript
 const quotes = await SFA.getAllQuote({
-  singleService?: ServiceType,        // Optional: query specific service only
+  singleService?: Service,        // Optional: query specific service only
   dry?: boolean,                       // Set to true for testing without deposit address
   minInputAmount?: string,             // Minimum input amount (default: "1")
   prices: Record<string, string>,      // Token prices
@@ -135,7 +135,7 @@ const quotes = await SFA.getAllQuote({
 });
 ```
 
-**Returns**: `Promise<Array<{ serviceType: ServiceType; quote?: any; error?: string }>>`
+**Returns**: `Promise<Array<{ serviceType: Service; quote?: any; error?: string }>>`
 
 **Example**:
 
@@ -201,7 +201,7 @@ Executes the transaction using the specified bridge service based on the service
 
 ```typescript
 const txHash = await SFA.send(
-  serviceType: ServiceType,  // "oneclick" | "cctp" | "usdt0"
+  serviceType: Service,  // "oneclick" | "cctp" | "usdt0"
   {
     wallet: WalletConfig,    // Wallet instance
     quote: any,               // Quote object from getAllQuote response
@@ -245,7 +245,7 @@ Queries the transaction status from the specified bridge service. Returns the cu
 
 ```typescript
 const status = await SFA.getStatus(
-  serviceType: ServiceType,  // "oneclick" | "cctp" | "usdt0"
+  serviceType: Service,  // "oneclick" | "cctp" | "usdt0"
   {
     depositAddress?: string, // Deposit address from quote (for OneClick)
     hash?: string,           // Transaction hash (for USDT0 and CCTP)
@@ -285,7 +285,7 @@ if (status.toChainTxHash) {
 
 ```typescript
 async function pollTransactionStatus(
-  serviceType: ServiceType,
+  serviceType: Service,
   params: { depositAddress?: string; hash?: string },
   interval: number = 5000
 ): Promise<{ status: TransactionStatus; toChainTxHash?: string }> {
@@ -879,7 +879,7 @@ Common error scenarios:
 The SDK provides full TypeScript type definitions:
 
 - `GetAllQuoteParams` - Parameters for `getAllQuote`
-- `ServiceType` - Bridge service type (`"oneclick" | "cctp" | "usdt0"`)
+- `Service` - Bridge service type (`"oneclick" | "cctp" | "usdt0"`)
 - `Service` - Service constants
 - `TokenConfig` - Token configuration interface
 - `WalletConfig` - Wallet interface

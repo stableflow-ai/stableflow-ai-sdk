@@ -6,17 +6,21 @@ import { ethers } from "ethers";
 import Big from "big.js";
 import { TronWeb } from "tronweb";
 import { SendType } from "../core/Send";
-import { Service, type ServiceType } from "../core/Service";
+import { Service } from "../core/Service";
 import { DefaultAddresses } from "./config/addresses";
-import { getRpcUrls } from "./config/rpcs";
+import { getChainRpcUrl } from "./config/rpcs";
 import { getDestinationAssociatedTokenAddress } from "./utils/solana";
 import { getHopMsgFee } from "../bridges/usdt0/hop-composer";
 import { DATA_HEX_PROTOBUF_EXTRA, LZ_RECEIVE_VALUE, SIGNATURE_SIZE, USDT0_LEGACY_MESH_TRANSFTER_FEE } from "../bridges/usdt0/config";
+import { Csl } from "../utils/log";
+import { OpenAPI } from "../core/OpenAPI";
+import { ExecTime } from "../utils/exec-time";
+import { NATIVE_MSG_FEE_BUFFER } from "./utils/layerzero";
 
 const DefaultTronWalletAddress = DefaultAddresses["tron"];
 const getCustomTronWeb = () => {
   return new TronWeb({
-    fullHost: getRpcUrls("tron")[0],
+    fullHost: getChainRpcUrl("tron").rpcUrl,
     headers: {},
     privateKey: "",
   });
@@ -26,6 +30,7 @@ export default class TronWallet {
   private signAndSendTransaction: any;
   private address: string;
   private tronWeb: any;
+  private csl;
 
   constructor(options: any) {
     this.signAndSendTransaction = options.signAndSendTransaction;
@@ -34,6 +39,9 @@ export default class TronWallet {
     const customTronWeb = getCustomTronWeb();
     customTronWeb.setAddress(this.address || DefaultTronWalletAddress);
     this.tronWeb = customTronWeb;
+
+    const cs = new Csl(OpenAPI.DEBUG);
+    this.csl = cs.log;
   }
 
   async waitForTronWeb() {
@@ -67,7 +75,7 @@ export default class TronWallet {
         customTronWeb.setAddress(DefaultTronWalletAddress);
         this.tronWeb = customTronWeb;
         resolve(this.tronWeb);
-        console.log(new Error("TronWeb initialization timeout"));
+        this.csl("TronWallet waitForTronWeb", "red-500", "TronWeb initialization timeout");
       }, 10000);
     });
   }
@@ -97,13 +105,7 @@ export default class TronWallet {
       this.tronWeb.toSun(amount)
     );
 
-    const result = await this.signAndSendTransaction(transaction);
-
-    if (typeof result === "string") {
-      return result;
-    }
-
-    return result.txid;
+    return this.sendTransaction({ tx: { transaction } });
   }
 
   async transferToken(contractAddress: string, to: string, amount: string) {
@@ -113,13 +115,7 @@ export default class TronWallet {
     const parameter = [{ type: 'address', value: to }, { type: 'uint256', value: amount }];
     const tx = await this.tronWeb.transactionBuilder.triggerSmartContract(contractAddress, functionSelector, {}, parameter);
 
-    const result = await this.signAndSendTransaction(tx.transaction);
-
-    if (typeof result === "string") {
-      return result;
-    }
-
-    return result.txid;
+    return this.sendTransaction({ tx });
 
     // // Get contract instance
     // const contract = await this.tronWeb.contract().at(contractAddress);
@@ -132,24 +128,36 @@ export default class TronWallet {
     // return transaction;
   }
 
-  async getBalance(token: any, account: string) {
+  async getBalance(token: any, account: string, options?: { isCatchError?: boolean; }) {
     await this.waitForTronWeb();
 
     if (token.symbol === "TRX" || token.symbol === "trx" || token.symbol === "native") {
-      return await this.getTRXBalance(account);
+      return await this.getTRXBalance(account, options);
     }
 
-    return await this.getTokenBalance(token.contractAddress, account);
+    return await this.getTokenBalance(token.contractAddress, account, options);
   }
 
-  async getTRXBalance(account: string) {
+  async getTRXBalance(account: string, options?: { isCatchError?: boolean; }) {
+    const { isCatchError = false } = options || {};
+
     await this.waitForTronWeb();
 
-    const balance = await this.tronWeb.trx.getBalance(account);
-    return balance.toString();
+    try {
+      const balance = await this.tronWeb.trx.getBalance(account);
+      return balance.toString();
+    } catch (error) {
+      this.csl("Tron getTRXBalance", "red-500", "Get TRX balance failed: %o", error);
+      if (isCatchError) {
+        throw error;
+      }
+      return "0";
+    }
   }
 
-  async getTokenBalance(contractAddress: string, account: string) {
+  async getTokenBalance(contractAddress: string, account: string, options?: { isCatchError?: boolean; }) {
+    const { isCatchError = false } = options || {};
+
     await this.waitForTronWeb();
 
     try {
@@ -159,22 +167,25 @@ export default class TronWallet {
       // Convert from smallest unit to token unit (assuming 6 decimals)
       return balance.toString();
     } catch (error) {
-      console.error("Error getting token balance:", error);
+      this.csl("Tron getTokenBalance", "red-500", "Get token balance failed: %o", error);
+      if (isCatchError) {
+        throw error;
+      }
       return "0";
     }
   }
 
-  async balanceOf(token: any, account: string) {
-    return await this.getBalance(token, account);
+  async balanceOf(token: any, account: string, options?: { isCatchError?: boolean; }) {
+    return await this.getBalance(token, account, options);
   }
 
   /**
-    * Estimate gas limit for transfer transaction
-    * @param data Transfer data
-    * @returns Gas limit estimate (bandwidth or energy), gas price, and estimated gas cost
-    */
+   * Estimate gas limit for transfer transaction
+   * @param data Transfer data
+   * @returns Gas limit estimate (bandwidth or energy), gas price, and estimated gas cost
+   */
   async estimateTransferGas(data: {
-    originAsset: string;
+    fromToken: any;
     depositAddress: string;
     amount: string;
   }): Promise<{
@@ -182,9 +193,8 @@ export default class TronWallet {
     gasPrice: bigint;
     estimateGas: bigint;
   }> {
-    const { originAsset } = data;
-
-    await this.waitForTronWeb();
+    const { fromToken } = data;
+    const originAsset = fromToken.contractAddress;
 
     // Tron uses bandwidth for TRX transfers and energy for smart contract calls
     // TRX transfer: ~268 bandwidth
@@ -225,6 +235,173 @@ export default class TronWallet {
     };
   }
 
+  async getEstimateGas(params: any) {
+    const { gasLimit, price, nativeToken } = params;
+
+    const energyPrice = BigInt(100);
+    const estimateGas = Big(gasLimit.toString()).times(energyPrice.toString());
+    const estimateGasAmount = Big(estimateGas).div(10 ** nativeToken.decimals);
+    const estimateGasUsd = Big(estimateGasAmount).times(price || 1);
+
+    return {
+      gasPrice: energyPrice,
+      usd: numberRemoveEndZero(Big(estimateGasUsd).toFixed(20)),
+      wei: BigInt(estimateGas.toFixed(0)),
+      amount: numberRemoveEndZero(Big(estimateGasAmount).toFixed(nativeToken.decimals)),
+    };
+  }
+
+  async estimateTransaction(params: any) {
+    const {
+      dry,
+      transactionParams,
+      fromToken,
+      prices,
+      defaultEnergyUsed,
+      defaultRawDataHexLength,
+      buffer,
+    } = params;
+
+    const nativeTokenPrice = getPrice(prices, fromToken.nativeToken.symbol);
+
+    let energyUsed = defaultEnergyUsed || 200000;
+    let rawDataHexLength = defaultRawDataHexLength || 1000;
+    try {
+      const transaction = await this.tronWeb.transactionBuilder.triggerConstantContract(...transactionParams);
+      energyUsed = transaction.energy_used || 200000;
+      rawDataHexLength = transaction.transaction.raw_data_hex.length || 1000;
+    } catch (error) {
+      this.csl("Usdt0 Tron", "red-500", "estimateTransaction triggerConstantContract error: %o, action: %o", error, transactionParams?.[1]);
+    }
+    const bandwidthAmount = Big(Big(rawDataHexLength).div(2).plus(DATA_HEX_PROTOBUF_EXTRA).plus(SIGNATURE_SIZE)).times(1e-3);
+    const bandwidthUsed = Big(bandwidthAmount).div(1e2).times(10 ** fromToken.nativeToken.decimals);
+    let totalUsed = Big(energyUsed).plus(bandwidthUsed);
+
+    if (buffer) {
+      totalUsed = Big(totalUsed).times(Big(1).plus(buffer));
+    }
+
+    const { usd, wei } = await this.getEstimateGas({
+      gasLimit: totalUsed.toFixed(0),
+      price: nativeTokenPrice,
+      nativeToken: fromToken.nativeToken,
+    });
+
+    const result = {
+      estimateSourceGasLimit: energyUsed,
+      estimateSourceGas: wei,
+      estimateSourceGasUsd: usd,
+    };
+
+    return result;
+  }
+
+  async estimateApprove(params: any) {
+    const {
+      dry,
+      spender,
+      amountWei,
+      fromToken,
+      prices,
+    } = params;
+
+    const approveParams = [
+      fromToken.contractAddress,
+      "approve(address,uint256)",
+      {},
+      [
+        { type: "address", value: spender },
+        { type: "uint256", value: amountWei }
+      ]
+    ];
+    return this.estimateTransaction({
+      dry,
+      transactionParams: approveParams,
+      fromToken,
+      prices,
+      defaultEnergyUsed: 100000,
+      defaultRawDataHexLength: 500,
+      // +10%
+      buffer: 0.1,
+    });
+  }
+
+  async pollingTransactionStatus(txHash: string, options?: {
+    maxPolls?: number;
+    pollInterval?: number;
+    isTRX?: boolean;
+  }) {
+    await this.waitForTronWeb();
+
+    const { maxPolls = 60, pollInterval = 2000, isTRX } = options || {};
+    let pollCount = 0;
+
+    return new Promise((resolve) => {
+      const poll = async () => {
+        pollCount++;
+        this.csl("TronWallet pollingTransactionStatus", "teal-400", "polling transaction status (%s), %d times", txHash, pollCount);
+
+        try {
+          const txInfo = await this.tronWeb.trx.getTransactionInfo(txHash);
+          this.csl("TronWallet pollingTransactionStatus", "teal-400", "transaction info (%s): %o", txHash, txInfo);
+
+          // if the transaction info exists and has receipt, the transaction has been on-chain
+          if (txInfo && txInfo.receipt) {
+            if (isTRX) {
+              resolve(true);
+              return;
+            }
+
+            const result = txInfo.receipt.result;
+
+            if (result === "SUCCESS") {
+              this.csl("TronWallet pollingTransactionStatus", "teal-400", "transaction success (%s)", txHash);
+              resolve(true);
+              return;
+            } else if (result === "FAILED" || result === "REVERT") {
+              this.csl("TronWallet pollingTransactionStatus", "red-500", "transaction failed (%s), result: %s", txHash, result);
+              resolve(false);
+              return;
+            } else {
+              // other status, continue polling
+              this.csl("TronWallet pollingTransactionStatus", "teal-400", "unknown transaction status (%s), result: %s, continue polling...", txHash, result);
+            }
+          } else {
+            // transaction info exists but no receipt, maybe still being packed, continue polling
+            this.csl("TronWallet pollingTransactionStatus", "teal-400", "transaction not confirmed (%s), continue polling...", txHash);
+          }
+        } catch (error: any) {
+          // if the transaction does not exist (maybe still being packed), continue polling
+          // common error messages include "not found" or "does not exist"
+          const errorMessage = error?.message || String(error);
+          if (
+            errorMessage.includes("not found") ||
+            errorMessage.includes("does not exist") ||
+            errorMessage.includes("not exist")
+          ) {
+            this.csl("TronWallet pollingTransactionStatus", "teal-400", "transaction not on-chain (%s), continue polling...", txHash);
+          } else {
+            // other error, log but continue polling
+            console.warn(`query transaction status error (${txHash}): %o`, errorMessage);
+          }
+        }
+
+        // check if the maximum polling times is reached
+        if (pollCount >= maxPolls) {
+          console.error(`polling timeout (${txHash}), maximum polling times reached: ${maxPolls}`);
+          resolve(false);
+          return;
+        }
+
+        // continue polling
+        setTimeout(poll, pollInterval);
+      };
+
+      // start polling
+      poll();
+    });
+  }
+
   async checkTransactionStatus(txHash: string) {
     await this.waitForTronWeb();
 
@@ -254,25 +431,38 @@ export default class TronWallet {
 
   async allowance(params: any) {
     const {
+      dry,
       contractAddress,
       spender,
       address,
       amountWei,
+      strict = false,
     } = params;
+
+    // Get contract instance
+    const contract = await this.tronWeb.contract().at(contractAddress);
+
+    if (dry) {
+      return {
+        contract,
+        allowance: "0",
+        needApprove: false,
+      };
+    }
 
     await this.waitForTronWeb();
 
     try {
-      // Get contract instance
-      const contract = await this.tronWeb.contract().at(contractAddress);
-
       // Get allowance
       let allowance = "0";
       try {
         const allowanceResult = await contract.allowance(address, spender).call();
         allowance = allowanceResult.toString();
       } catch (error) {
-        console.log("Error getting allowance: %o", error);
+        this.csl("TronWallet allowance", "red-500", "Error getting allowance: %o", error);
+        if (strict) {
+          throw error;
+        }
       }
 
       return {
@@ -281,7 +471,10 @@ export default class TronWallet {
         needApprove: Big(amountWei || 0).gt(allowance || 0),
       };
     } catch (error) {
-      console.log("Error in allowance: %o", error);
+      this.csl("TronWallet allowance", "red-500", "Error in allowance: %o", error);
+      if (strict) {
+        throw error;
+      }
       // Return default values on error
       return {
         contract: null,
@@ -297,9 +490,17 @@ export default class TronWallet {
       spender,
       amountWei,
       isApproveMax = false,
+      isDetails = false,
+      isWaitTxReceipt = true,
     } = params;
 
     await this.waitForTronWeb();
+
+    const detailResult: any = {
+      success: false,
+      data: {},
+      message: null,
+    };
 
     try {
       // Determine approval amount
@@ -323,30 +524,47 @@ export default class TronWallet {
       );
 
       // Sign and send transaction
-      const result = await this.signAndSendTransaction(tx.transaction);
+      const txHash = await this.sendTransaction({ tx });
+      let txInfo: Record<string, unknown> | null = null;
 
-      if (typeof result === "string") {
-        return result;
+      if (isWaitTxReceipt) {
+        const pollingResult = await this.pollingTransactionStatus(txHash, {
+          maxPolls: 120,
+          pollInterval: 2000,
+        });
+        if (!pollingResult) {
+          this.csl("TronWallet approve", "red-500", "Failed polling approve transaction status");
+          if (isDetails) {
+            detailResult.message = "Failed to get approve result";
+            return detailResult;
+          }
+          return false;
+        }
+        txInfo = await this.getTransactionResult(txHash);
       }
 
-      return result.txid;
-    } catch (error) {
-      console.log("Error approve: %o", error);
+      if (isDetails) {
+        const txReceipt = txInfo?.receipt as { result?: string } | undefined;
+        detailResult.success = true;
+        detailResult.data = {
+          txHash,
+          txInfo,
+          receiptResult: txReceipt?.result,
+          blockNumber: txInfo?.blockNumber,
+          blockTimeStamp: txInfo?.blockTimeStamp,
+        };
+        return detailResult;
+      }
+
+      return txHash;
+    } catch (error: any) {
+      this.csl("TronWallet approve", "red-500", "Error approve: %o", error);
+      if (isDetails) {
+        detailResult.message = error.message;
+        return detailResult;
+      }
       return false;
     }
-  }
-
-  async getEnergyPrice() {
-    await this.waitForTronWeb();
-    let energyFee: any = 100; // Default 280 Sun/Energy
-    // try {
-    //   const params = await this.tronWeb.trx.getChainParameters();
-    //   energyFee = params.find((p: any) => p.key === "getEnergyFee")?.value || 280;
-    //   console.log('Energy Fee:', energyFee, 'Sun/Energy');
-    // } catch (err) {
-    //   console.error("Error getting energy price:", err);
-    // }
-    return energyFee;
   }
 
   toBytes32(addr: string): string {
@@ -356,6 +574,7 @@ export default class TronWallet {
 
   async quoteOFT(params: any) {
     const {
+      dry,
       abi,
       dstEid,
       recipient,
@@ -374,7 +593,10 @@ export default class TronWallet {
       isOriginLegacy,
       isDestinationLegacy,
       originLayerzero,
+      destinationLayerzero,
     } = params;
+
+    const { Options } = await import("@layerzerolabs/lz-v2-utilities");
 
     const result: any = {
       needApprove: false,
@@ -388,48 +610,41 @@ export default class TronWallet {
       fees: {},
       totalFeesUsd: void 0,
       estimateSourceGas: void 0,
+      totalEstimateSourceGas: 0n,
       estimateSourceGasUsd: void 0,
       estimateTime: 0, // seconds - dynamically calculated using LayerZero formula
       outputAmount: numberRemoveEndZero(Big(amountWei || 0).div(10 ** params.fromToken.decimals).toFixed(params.fromToken.decimals, 0)),
     };
 
+    const execTime = new ExecTime({ type: "USDT0 Tron", logStyle: "indigo-300", isDebug: OpenAPI.DEBUG });
     await this.waitForTronWeb();
+    execTime.log("waitForTronWeb");
 
+    execTime.breakpoint();
     const oftContract = await this.tronWeb.contract(abi, originLayerzeroAddress);
+    execTime.log("tronWeb.contract originLayerzeroAddress");
 
-    // 1. check if need approve
-    const approvalRequired = await oftContract.approvalRequired().call();
-    // check approve status
-    // console.log("%cApprovalRequired: %o", "background:blue;color:white;", result.needApprove);
+    execTime.breakpoint();
+    const userAddress = refundTo || this.tronWeb.defaultAddress.base58;
+    const approvalRequired = isOriginLegacy ? originLayerzero.oftLegacyApprovalRequired : originLayerzero.oftApprovalRequired;
+    execTime.log("approvalRequired");
 
-    // If approval is required, check actual allowance
-    if (approvalRequired) {
-      try {
-        // Get user address (use refundTo if provided, otherwise use default address)
-        const userAddress = refundTo || this.tronWeb.defaultAddress.base58;
-
-        // Check allowance
-        const allowanceResult = await this.allowance({
-          contractAddress: fromToken.contractAddress,
-          spender: originLayerzeroAddress,
-          address: userAddress,
-          amountWei,
-        });
-        result.needApprove = allowanceResult.needApprove;
-      } catch (error) {
-        console.log("Error checking allowance: %o", error);
-      }
-    }
-
-    const lzReceiveOptionGas = isOriginLegacy ? originLayerzero.lzReceiveOptionGasLegacy : originLayerzero.lzReceiveOptionGas;
+    const lzReceiveOptionGas = isDestinationLegacy ? destinationLayerzero.lzReceiveOptionGasLegacy : destinationLayerzero.lzReceiveOptionGas;
     let lzReceiveOptionValue = 0;
 
+    execTime.breakpoint();
     const destATA = await getDestinationAssociatedTokenAddress({
       recipient,
       toToken,
     });
+    execTime.log("getDestinationAssociatedTokenAddress");
     if (destATA.needCreateTokenAccount) {
       lzReceiveOptionValue = LZ_RECEIVE_VALUE[toToken.chainName] || 0;
+    }
+
+    let unMultiHopExtraOptions = Options.newOptions().toHex();
+    if (!isMultiHopComposer && lzReceiveOptionValue) {
+      unMultiHopExtraOptions = Options.newOptions().addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue).toHex();
     }
 
     // 2. quote send
@@ -444,9 +659,7 @@ export default class TronWallet {
       // minAmountLD
       "0",
       // extraOptions
-      Options.newOptions()
-        .addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue)
-        .toHex(),
+      unMultiHopExtraOptions,
       // composeMsg
       "0x",
       // oftCmd
@@ -459,36 +672,37 @@ export default class TronWallet {
       sendParam[1] = addressToBytes32("evm", multiHopComposer.oftMultiHopComposer); // to
     }
 
-    const oftData = await oftContract.quoteOFT(sendParam).call();
-    const [, , oftReceipt] = oftData;
-    sendParam[3] = Big(oftReceipt[1].toString()).times(Big(1).minus(Big(slippageTolerance || 0).div(100))).toFixed(0);
-
-    const msgFee = await oftContract.quoteSend(sendParam, payInLzToken).call();
-    let nativeMsgFee: BigInt = msgFee[0]["nativeFee"];
-    if (nativeMsgFee) {
-      nativeMsgFee = BigInt(Big(nativeMsgFee.toString()).times(1.2).toFixed(0));
+    if (!dry) {
+      execTime.breakpoint();
+      const oftData = await oftContract.quoteOFT(sendParam).call();
+      execTime.log("quoteOFT");
+      const [, , oftReceipt] = oftData;
+      sendParam[3] = Big(oftReceipt[1].toString()).times(Big(1).minus(Big(slippageTolerance || 0).div(100))).toFixed(0);
     }
-    result.estimateSourceGas = nativeMsgFee;
 
     if (isMultiHopComposer) {
+      let multiHopExtraOptions = Options.newOptions().toHex();
+      if (lzReceiveOptionValue) {
+        multiHopExtraOptions = Options.newOptions().addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue).toHex();
+      }
+
       const composeMsgSendParam = {
         dstEid,
         to: addressToBytes32(toToken.chainType, recipient),
         amountLD: sendParam[2],
         minAmountLD: sendParam[3],
-        extraOptions: Options.newOptions()
-          .addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue)
-          .toHex(),
+        extraOptions: multiHopExtraOptions,
         composeMsg: "0x",
         oftCmd: "0x",
       };
+      execTime.breakpoint();
       const hopMsgFee = await getHopMsgFee({
         sendParam: composeMsgSendParam,
         toToken,
       });
+      execTime.log("getHopMsgFee");
 
       sendParam[4] = Options.newOptions()
-        .addExecutorLzReceiveOption(lzReceiveOptionGas, lzReceiveOptionValue)
         .addExecutorComposeOption(0, originLayerzero.composeOptionGas || 800000, hopMsgFee)
         .toHex();
       const abiCoder = ethers.AbiCoder.defaultAbiCoder();
@@ -498,7 +712,36 @@ export default class TronWallet {
       );
     }
 
-    // console.log("%cMsgFee: %o", "background:blue;color:white;", msgFee);
+    execTime.breakpoint();
+    const mergedCalls = [
+      oftContract.quoteSend(sendParam, payInLzToken).call(),
+    ];
+    if (approvalRequired) {
+      mergedCalls.push(
+        this.allowance({
+          dry,
+          contractAddress: fromToken.contractAddress,
+          spender: originLayerzeroAddress,
+          address: userAddress,
+          amountWei,
+        })
+      );
+    }
+    const [msgFee, allowanceResult] = await Promise.all(mergedCalls);
+    if (approvalRequired) {
+      result.needApprove = allowanceResult.needApprove;
+    }
+    execTime.log("quoteSend & allowance", "allowanceResult: %o", allowanceResult);
+
+    let nativeMsgFee: BigInt = msgFee[0]["nativeFee"];
+    this.csl("Tron quoteOFT", "red-600", "nativeFee: %o", nativeMsgFee);
+    if (nativeMsgFee) {
+      nativeMsgFee = BigInt(Big(nativeMsgFee.toString()).times(Number(NATIVE_MSG_FEE_BUFFER) / 100).toFixed(0));
+    }
+    this.csl("Tron quoteOFT", "red-600", "nativeFee after buffer: %o", nativeMsgFee);
+    result.totalEstimateSourceGas = nativeMsgFee;
+
+    this.csl("TronWallet quoteOFT", "teal-400", "MsgFee: %o", msgFee);
 
     result.sendParam = {
       param: [
@@ -517,7 +760,7 @@ export default class TronWallet {
       options: { callValue: nativeMsgFee.toString() },
     };
 
-    // console.log("%cParams: %o", "background:blue;color:white;", result.sendParam);
+    // this.csl("TronWallet quoteOFT", "teal-400", "Params: %o", result.sendParam);
 
     // 3. estimate gas
     const nativeFeeUsd = Big(nativeMsgFee?.toString() || 0).div(10 ** fromToken.nativeToken.decimals).times(getPrice(prices, fromToken.nativeToken.symbol));
@@ -551,34 +794,40 @@ export default class TronWallet {
       ],
       this.tronWeb.defaultAddress.base58 || refundTo
     ];
-    const energyPrice = await this.getEnergyPrice();
 
-    const tx = await this.tronWeb.transactionBuilder.triggerSmartContract(...transactionParams);
-    result.sendParam.tx = tx;
+    if (!dry) {
+      execTime.breakpoint();
+      const tx = await this.tronWeb.transactionBuilder.triggerSmartContract(...transactionParams);
+      execTime.log("transactionBuilder.triggerSmartContract");
+      result.sendParam.tx = tx;
+    }
 
-    try {
-      const transaction = await this.tronWeb.transactionBuilder.triggerConstantContract(...transactionParams);
-      const energyUsed = transaction.energy_used || 200000;
-      const rawDataHexLength = transaction.transaction.raw_data_hex.length || 1000;
-      const bandwidthAmount = (rawDataHexLength / 2 + DATA_HEX_PROTOBUF_EXTRA + SIGNATURE_SIZE) * 0.001;
+    execTime.breakpoint();
+    const ett = await this.estimateTransaction({
+      dry,
+      transactionParams,
+      fromToken,
+      prices,
+      defaultEnergyUsed: 300000,
+      defaultRawDataHexLength: 1000,
+    });
+    execTime.log("estimateTransaction");
+    result.fees.estimateGasUsd = ett.estimateSourceGasUsd;
+    result.estimateSourceGas = ett.estimateSourceGas;
+    result.totalEstimateSourceGas += ett.estimateSourceGas;
+    result.estimateSourceGasUsd = ett.estimateSourceGasUsd;
 
-      const amount = Big(energyUsed || 0).times(energyPrice).div(10 ** fromToken.nativeToken.decimals);
-      const totalAmount = Big(amount).plus(bandwidthAmount);
-      const usd = numberRemoveEndZero(Big(totalAmount).times(getPrice(prices, fromToken.nativeToken.symbol)).toFixed(20));
-      result.fees.estimateGasUsd = usd;
-      result.estimateSourceGas = numberRemoveEndZero(Big(totalAmount).times(10 ** fromToken.nativeToken.decimals).toFixed(fromToken.nativeToken.decimals));
-      result.estimateSourceGasUsd = usd;
-    } catch (error) {
-      const energyUsed = 200000;
-      const rawDataHexLength = 1000;
-      const bandwidthAmount = (rawDataHexLength / 2 + DATA_HEX_PROTOBUF_EXTRA + SIGNATURE_SIZE) * 0.001;
-
-      const amount = Big(energyUsed || 0).times(energyPrice).div(10 ** fromToken.nativeToken.decimals);
-      const totalAmount = Big(amount).plus(bandwidthAmount);
-      const usd = numberRemoveEndZero(Big(totalAmount).times(getPrice(prices, fromToken.nativeToken.symbol)).toFixed(20));
-      result.fees.estimateGasUsd = usd;
-      result.estimateSourceGas = numberRemoveEndZero(Big(totalAmount).times(10 ** fromToken.nativeToken.decimals).toFixed(fromToken.nativeToken.decimals));
-      result.estimateSourceGasUsd = usd;
+    if (result.needApprove) {
+      execTime.breakpoint();
+      const estApproveGas = await this.estimateApprove({
+        dry,
+        amountWei,
+        spender: result.approveSpender,
+        fromToken,
+        prices,
+      });
+      result.estimateApproveGas = estApproveGas.estimateSourceGas;
+      execTime.log("estimateApprove");
     }
 
     // calculate total fees
@@ -592,6 +841,8 @@ export default class TronWallet {
 
     result.sendParam.transactionParams = transactionParams;
 
+    execTime.log("quoteOFT");
+
     return result;
   }
 
@@ -600,27 +851,64 @@ export default class TronWallet {
       tx,
     } = params;
 
-    const result = await this.signAndSendTransaction(tx.transaction);
+    const transaction = tx?.transaction;
+    if (!transaction?.raw_data) {
+      throw new Error("Invalid transaction");
+    }
 
-    if (typeof result === "object" && result.message) {
-      if (/user rejected the transaction/i.test(result.message)) {
-        throw new Error("User rejected the transaction");
+    this.csl("Tron sendTransaction", "red-400", "transaction: %o", transaction);
+
+    const startTimestamp = Date.now();
+    const expirationDuration = 5 * 60 * 1000;
+    const expiration = startTimestamp + expirationDuration;
+    let transactionWithExpiration = {
+      ...transaction,
+      raw_data: {
+        ...transaction.raw_data,
+        expiration,
+      },
+    };
+
+    try {
+      await this.waitForTronWeb();
+      transactionWithExpiration = await this.tronWeb.transactionBuilder.newTxID(transactionWithExpiration, { txLocal: true });
+    } catch (error) {
+      console.warn("Failed to refresh transaction ID after extending expiration:", error);
+    }
+
+    this.csl("Tron sendTransaction", "red-400", "override transaction: %o", transactionWithExpiration);
+
+    const result = await this.signAndSendTransaction(transactionWithExpiration);
+
+    this.csl("Tron sendTransaction", "red-400", "Transaction sent with result: %o", result);
+
+    if (typeof result === "object") {
+      const code = result.code ? String(result.code) : "";
+      const message = result.message ? String(result.message) : "";
+      const combined = `${code} ${message}`.toUpperCase();
+      if (combined.includes("TRANSACTION_EXPIRATION_ERROR")
+        || combined.includes("TRANSACTION_EXPIRED")
+        || combined.includes("EXPIRED")
+      ) {
+        throw new Error("Transaction expired. Try again.");
       }
     }
+
+    this.csl("Tron sendTransaction", "red-400", "success: %o", result);
 
     if (typeof result === "string") {
       return result;
     }
 
-    return result.txid;
+    return result?.txid || result?.txID || transactionWithExpiration.txID;
   }
 
   /**
    * Unified quote method that routes to specific quote methods based on type
-   * @param type Service type from ServiceType
+   * @param type Service type from Service
    * @param params Parameters for the quote
    */
-  async quote(type: ServiceType, params: any) {
+  async quote(type: Service, params: any) {
     switch (type) {
       case Service.Usdt0:
         return await this.quoteOFT(params);
@@ -649,6 +937,7 @@ export default class TronWallet {
 
   async quoteOneClickProxy(params: any) {
     const {
+      dry,
       proxyAddress,
       abi,
       fromToken,
@@ -660,21 +949,22 @@ export default class TronWallet {
 
     const result: any = { fees: {} };
 
+    const execTime = new ExecTime({ type: "Oneclick Tron", logStyle: "indigo-400", isDebug: OpenAPI.DEBUG });
     await this.waitForTronWeb();
+    execTime.log("waitForTronWeb");
     const userAddress = refundTo || this.tronWeb.defaultAddress.base58;
 
-    try {
-      const allowance = await this.allowance({
-        contractAddress: fromToken.contractAddress,
-        address: userAddress,
-        spender: proxyAddress,
-        amountWei: amountWei,
-      });
-      result.needApprove = allowance.needApprove;
-      result.approveSpender = proxyAddress;
-    } catch (error) {
-      console.log("oneclick check allowance failed: %o", error);
-    }
+    execTime.breakpoint();
+    const allowance = await this.allowance({
+      dry,
+      contractAddress: fromToken.contractAddress,
+      address: userAddress,
+      spender: proxyAddress,
+      amountWei: amountWei,
+    });
+    result.needApprove = allowance.needApprove;
+    result.approveSpender = proxyAddress;
+    execTime.log("allowance");
 
     const proxyParam: any = [
       // tokenAddress
@@ -708,38 +998,43 @@ export default class TronWallet {
       ],
       this.tronWeb.defaultAddress.base58 || refundTo
     ];
-    // Get current energy price from Tron
-    const energyPrice = await this.getEnergyPrice();
 
+    execTime.breakpoint();
     const tx = await this.tronWeb.transactionBuilder.triggerSmartContract(...transactionParams);
+    execTime.log("transactionBuilder.triggerSmartContract");
     result.sendParam.tx = tx;
 
-    try {
-      const transaction = await this.tronWeb.transactionBuilder.triggerConstantContract(...transactionParams);
-      const energyUsed = transaction.energy_used || 30000;
-      const rawDataHexLength = transaction.transaction.raw_data_hex.length || 500;
-      const bandwidthAmount = (rawDataHexLength / 2 + DATA_HEX_PROTOBUF_EXTRA + SIGNATURE_SIZE) * 0.001;
+    execTime.breakpoint();
+    const ett = await this.estimateTransaction({
+      dry,
+      transactionParams,
+      fromToken,
+      prices,
+      defaultEnergyUsed: 200000,
+      defaultRawDataHexLength: 500,
+    });
+    execTime.log("estimateTransaction");
+    result.fees.estimateGasUsd = ett.estimateSourceGasUsd;
+    result.estimateSourceGas = ett.estimateSourceGas;
+    result.totalEstimateSourceGas = ett.estimateSourceGas;
+    result.estimateSourceGasUsd = ett.estimateSourceGasUsd;
 
-      const amount = Big(energyUsed || 0).times(energyPrice).div(10 ** fromToken.nativeToken.decimals);
-      const totalAmount = Big(amount).plus(bandwidthAmount);
-      const usd = numberRemoveEndZero(Big(totalAmount).times(getPrice(prices, fromToken.nativeToken.symbol)).toFixed(20));
-      result.fees.sourceGasFeeUsd = usd;
-      result.estimateSourceGas = numberRemoveEndZero(Big(totalAmount).times(10 ** fromToken.nativeToken.decimals).toFixed(fromToken.nativeToken.decimals));
-      result.estimateSourceGasUsd = usd;
-    } catch (error) {
-      const energyUsed = 169000;
-      const rawDataHexLength = 500;
-      const bandwidthAmount = (rawDataHexLength / 2 + DATA_HEX_PROTOBUF_EXTRA + SIGNATURE_SIZE) * 0.001;
-
-      const amount = Big(energyUsed || 0).times(energyPrice).div(10 ** fromToken.nativeToken.decimals);
-      const totalAmount = Big(amount).plus(bandwidthAmount);
-      const usd = numberRemoveEndZero(Big(totalAmount).times(getPrice(prices, fromToken.nativeToken.symbol)).toFixed(20));
-      result.fees.estimateGasUsd = usd;
-      result.estimateSourceGas = numberRemoveEndZero(Big(totalAmount).times(10 ** fromToken.nativeToken.decimals).toFixed(fromToken.nativeToken.decimals));
-      result.estimateSourceGasUsd = usd;
+    if (result.needApprove) {
+      execTime.breakpoint();
+      const estApproveGas = await this.estimateApprove({
+        dry,
+        amountWei,
+        spender: result.approveSpender,
+        fromToken,
+        prices,
+      });
+      result.estimateApproveGas = estApproveGas.estimateSourceGas;
+      execTime.log("estimateApprove");
     }
 
     result.sendParam.transactionParams = transactionParams;
+
+    execTime.logTotal("quoteOneClickPorxy");
 
     return result;
   }
@@ -767,7 +1062,7 @@ export default class TronWallet {
       try {
         if (this.tronWeb.trx.getAccountResources) {
           const resources: any = await this.tronWeb.trx.getAccountResources(account);
-          console.log("resources: %o", resources);
+          this.csl("TronWallet getAccountResources", "teal-400", "resources: %o", resources);
           if (resources) {
             // Get available energy (EnergyLimit - EnergyUsed)
             availableEnergy = (resources.EnergyLimit || 0) - (resources.EnergyUsed || 0);

@@ -4,55 +4,19 @@ import { SendType } from "../../core/Send";
 import { Service } from "../../core/Service";
 import { OpenAPI } from '../../core/OpenAPI';
 import { request } from '../../core/request';
+import { ExecTime } from "../../utils/exec-time";
+import { calculateEstimateTime } from "../utils";
+import { numberRemoveEndZero } from "../../utils/number";
+import Big from "big.js";
 
 export const PayInLzToken = false;
 
-const excludeFees: string[] = ["estimateGasUsd"];
+export const excludeFees: string[] = ["estimateGasUsd"];
 
-/**
- * Calculate USDT0 cross-chain estimated time using LayerZero formula
- * Formula: Total Time ≈ (sourceBlockTime × blockConfirmations) + (destinationBlockTime × (2 blocks + DVN count))
- * 
- * @param originChain Source chain name (e.g., "Ethereum", "Arbitrum")
- * @param destinationChain Destination chain name
- * @returns Estimated time in seconds, returns default value 32 if config is missing
- */
-function calculateEstimateTime(originChain: string, destinationChain: string): number {
-  const originConfig = USDT0_CONFIG[originChain];
-  const destinationConfig = USDT0_CONFIG[destinationChain];
-
-  // Return default value if config is missing
-  if (!originConfig || !destinationConfig) {
-    console.warn(`Missing config for chains: origin=${originChain}, destination=${destinationChain}, using default 32s`);
-    return 32;
-  }
-
-  // Validate required configuration fields
-  if (
-    typeof originConfig.blockTime !== 'number' ||
-    typeof originConfig.confirmations !== 'number' ||
-    typeof destinationConfig.blockTime !== 'number'
-  ) {
-    console.warn(`Invalid config for chains: origin=${originChain}, destination=${destinationChain}, using default 32s`);
-    return 32;
-  }
-
-  const sourceBlockTime = originConfig.blockTime;
-  const blockConfirmations = originConfig.confirmations;
-  const destinationBlockTime = destinationConfig.blockTime;
-  const dvnCount = USDT0_DVN_COUNT;
-
-  // Calculate: source chain part + destination chain part
-  const sourceTime = sourceBlockTime * blockConfirmations;
-  const destinationTime = destinationBlockTime * (2 + dvnCount);
-  const totalTime = Math.ceil(sourceTime + destinationTime);
-
-  return totalTime;
-}
-
-class Usdt0Service {
+export class Usdt0Service {
   public async quote(params: any) {
     const {
+      dry,
       wallet,
       originChain,
       destinationChain,
@@ -65,6 +29,9 @@ class Usdt0Service {
       prices,
     } = params;
 
+    const _quoteType = `Usdt0Service ${fromToken?.chainName}->${toToken?.chainName}`;
+    const execTime = new ExecTime({ type: _quoteType, logStyle: "lime-600", isDebug: OpenAPI.DEBUG });
+
     const originLayerzero = USDT0_CONFIG[originChain];
     const destinationLayerzero = USDT0_CONFIG[destinationChain];
 
@@ -73,21 +40,34 @@ class Usdt0Service {
     let dstEid = destinationLayerzero.eid;
 
     // Dynamically calculate estimated time
-    const estimateTime = calculateEstimateTime(originChain, destinationChain);
+    const estimateTime = calculateEstimateTime({
+      requiredDvnCount: USDT0_DVN_COUNT,
+      originConfig: originLayerzero,
+      destinationConfig: destinationLayerzero,
+    });
 
     if (fromToken.chainType === "evm") {
       destinationLayerzeroAddress = destinationLayerzero.oft || destinationLayerzero.oftLegacy;
       let isOriginLegacy = false;
-      const isDestinationLegacy = destinationLayerzeroAddress === destinationLayerzero.oftLegacy;
+      let isDestinationLegacy = destinationLayerzeroAddress === destinationLayerzero.oftLegacy;
       if (isDestinationLegacy) {
         originLayerzeroAddress = originLayerzero.oftLegacy || originLayerzero.oft;
         isOriginLegacy = originLayerzeroAddress === originLayerzero.oftLegacy;
+      }
+      if (!originLayerzeroAddress) {
+        originLayerzeroAddress = originLayerzero.oftLegacy;
+        isOriginLegacy = true;
+        if (destinationLayerzero.oftLegacy) {
+          destinationLayerzeroAddress = destinationLayerzero.oftLegacy;
+          isDestinationLegacy = true;
+        }
       }
       const isBothLegacy = isOriginLegacy && isDestinationLegacy;
       const isBothOUpgradeable = !isOriginLegacy && !isDestinationLegacy;
       const isMultiHopComposer = !isBothLegacy && !isBothOUpgradeable;
 
       const result = await wallet.quote(Service.Usdt0, {
+        dry,
         abi: OFT_ABI,
         dstEid,
         refundTo,
@@ -111,6 +91,7 @@ class Usdt0Service {
 
       result.estimateTime = estimateTime;
 
+      execTime.logTotal("Usdt0Service.quote");
       return result;
     }
 
@@ -121,7 +102,6 @@ class Usdt0Service {
     const isDestinationLegacy = destinationLayerzeroAddress === destinationLayerzero.oftLegacy;
     const isBothLegacy = isOriginLegacy && isDestinationLegacy;
     const isMultiHopComposer = !isBothLegacy;
-    console.log("isMultiHopComposer: %o", isMultiHopComposer);
 
     // one is legacy, and one is upgradeable
     // should use multi hop composer
@@ -131,61 +111,100 @@ class Usdt0Service {
       destinationLayerzeroAddress = USDT0_CONFIG["Arbitrum"].oftMultiHopComposer;
     }
 
+    const oftParams: any = {
+      dry,
+      dstEid: destinationLayerzero.eid,
+      refundTo,
+      recipient,
+      amountWei,
+      slippageTolerance,
+      payInLzToken: PayInLzToken,
+      fromToken,
+      toToken,
+      prices,
+      originLayerzeroAddress,
+      destinationLayerzeroAddress,
+      excludeFees,
+      multiHopComposer: USDT0_CONFIG["Arbitrum"],
+      isMultiHopComposer,
+      isOriginLegacy,
+      isDestinationLegacy,
+      originLayerzero,
+      destinationLayerzero,
+    };
+
     if (fromToken.chainType === "tron") {
-      const result = await wallet.quote(Service.Usdt0, {
-        abi: OFT_ABI,
-        dstEid: destinationLayerzero.eid,
-        refundTo,
-        recipient,
-        amountWei,
-        slippageTolerance,
-        payInLzToken: PayInLzToken,
-        fromToken,
-        toToken,
-        prices,
-        originLayerzeroAddress,
-        destinationLayerzeroAddress,
-        excludeFees,
-        multiHopComposer: USDT0_CONFIG["Arbitrum"],
-        isMultiHopComposer,
-        isOriginLegacy,
-        isDestinationLegacy,
-        originLayerzero,
-        destinationLayerzero,
-      });
-
-      result.estimateTime = estimateTime;
-
-      return result;
+      oftParams.abi = OFT_ABI;
     }
 
     if (fromToken.chainType === "sol") {
-      const result = await wallet.quote(Service.Usdt0, {
-        idl: SOLANA_IDL,
-        dstEid: destinationLayerzero.eid,
-        refundTo,
-        recipient,
-        amountWei,
-        slippageTolerance,
-        payInLzToken: PayInLzToken,
-        fromToken,
-        toToken,
-        prices,
-        originLayerzeroAddress,
-        destinationLayerzeroAddress,
-        excludeFees,
-        multiHopComposer: USDT0_CONFIG["Arbitrum"],
-        isMultiHopComposer,
-        isOriginLegacy,
-        isDestinationLegacy,
-        originLayerzero,
-        destinationLayerzero,
-      });
-
-      result.estimateTime = estimateTime;
-
-      return result;
+      oftParams.idl = SOLANA_IDL;
     }
+
+    const result = await wallet.quote(Service.Usdt0, {
+      idl: SOLANA_IDL,
+      ...oftParams,
+    });
+
+    result.estimateTime = estimateTime;
+
+    execTime.logTotal("Usdt0Service.quote");
+
+    return result;
+  }
+
+  public async estimateTransaction(params: any, quoteData: any) {
+    const {
+      fromToken,
+      amountWei,
+      wallet,
+      prices,
+      evmGasFees,
+    } = params;
+
+    const result: any = { fees: {}, ...quoteData };
+
+    const isFromTron = fromToken.chainType === "tron";
+    const nativeTokenDecimals = fromToken.nativeToken.decimals;
+
+    const estimateTransactionParams = {
+      dry: false,
+      ...quoteData.sendParam,
+      fromToken,
+      prices,
+      evmGasFees,
+    };
+    if (isFromTron) {
+      estimateTransactionParams.defaultEnergyUsed = 300000;
+      estimateTransactionParams.defaultRawDataHexLength = 1000;
+    }
+    const ett = await wallet.estimateTransaction(estimateTransactionParams);
+    result.fees.estimateGasUsd = ett.estimateSourceGasUsd;
+    result.estimateSourceGas = ett.estimateSourceGas;
+    result.estimateSourceGasUsd = ett.estimateSourceGasUsd;
+    result.totalEstimateSourceGas = BigInt(Big(quoteData.fees?.nativeFee || 0).times(10 ** nativeTokenDecimals).toFixed(0)) + ett.estimateSourceGas;
+
+    if (result.needApprove && wallet.estimateApprove) {
+      const estApptroveGas = await wallet.estimateApprove({
+        dry: false,
+        amountWei,
+        spender: result.approveSpender,
+        fromToken,
+        prices,
+      });
+      result.estimateApproveGas = estApptroveGas.estimateSourceGas;
+    }
+
+    result.totalFeesUsd = "0";
+    for (const feeKey in result.fees) {
+      if (excludeFees.includes(feeKey) || !/Usd$/.test(feeKey)) {
+        continue;
+      }
+      result.totalFeesUsd = Big(result.totalFeesUsd || 0).plus(result.fees[feeKey] || 0);
+    }
+    result.totalFeesUsd = numberRemoveEndZero(Big(result.totalFeesUsd).toFixed(20));
+
+    return result;
   }
 
   public async send(params: any) {

@@ -3,6 +3,7 @@ import {
   PublicKey,
 } from '@solana/web3.js';
 import { struct, u32, u64, bytes, option, bool } from '@metaplex-foundation/umi/serializers';
+import { ethers } from 'ethers';
 
 const SEEDS = {
   OFT: Buffer.from('OFT'),
@@ -106,3 +107,65 @@ export function parseDecimalToUnits(amount: string, decimals: number): bigint {
   const fracPadded = frac.padEnd(decimals, '0').slice(0, decimals);
   return BigInt(whole + fracPadded);
 }
+
+//#region for Layerzero retry compose
+export function normalizeHex(hex: string) {
+  if (!hex) return "0x";
+  const s = String(hex);
+
+  const indices = [];
+  const re = /0x/gi;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    indices.push(m.index);
+  }
+
+  let best = "";
+  if (indices.length === 0) {
+    best = s.replace(/[^0-9a-fA-F]/g, "");
+  } else {
+    for (let i = 0; i < indices.length; i++) {
+      const start = indices[i] + 2;
+      const end = i + 1 < indices.length ? indices[i + 1] : s.length;
+      const candidate = s.slice(start, end).replace(/[^0-9a-fA-F]/g, "");
+      if (candidate.length > best.length) best = candidate;
+    }
+  }
+
+  if (!best) return "0x";
+  if (best.length % 2) throw new Error("hex length must be even");
+  return "0x" + best.toLowerCase();
+}
+
+export function toBytes32(addrOrBytes32: string) {
+  const h = normalizeHex(addrOrBytes32);
+  if (h.length === 42) return ethers.zeroPadValue(h, 32); // address -> bytes32
+  if (h.length === 66) return h;
+  throw new Error("expected address(20B) or bytes32(32B)");
+}
+
+export function encodeUint(value: string, sizeBytes: number) {
+  const bn = BigInt(value);
+  const max = (1n << BigInt(sizeBytes * 8)) - 1n;
+
+  if (bn < 0n || bn > max) {
+    throw new Error(`value does not fit uint${sizeBytes * 8}`);
+  }
+
+  return ethers.zeroPadValue(ethers.toBeHex(bn), sizeBytes);
+}
+
+export function buildEndpointV2LzComposePayload(params: { nonce: string; srcEid: string; amountLD: string; composeFrom: string; composeMsg: string; }) {
+  const { nonce, srcEid, amountLD, composeFrom, composeMsg } = params;
+  return ethers.concat([
+    encodeUint(nonce, 8),     // uint64
+    encodeUint(srcEid, 4),    // uint32
+    encodeUint(amountLD, 32), // uint256
+    toBytes32(composeFrom),   // bytes32
+    normalizeHex(composeMsg), // bytes
+  ]);
+}
+//#endregion
+
+// add buffer for native msg fee
+export const NATIVE_MSG_FEE_BUFFER: bigint = 105n;

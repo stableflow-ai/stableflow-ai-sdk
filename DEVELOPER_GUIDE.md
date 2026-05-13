@@ -80,14 +80,14 @@ Retrieves quotes from all available bridge services, supporting parallel queries
 #### Signature
 
 ```typescript
-SFA.getAllQuote(params: GetAllQuoteParams): Promise<Array<{ serviceType: ServiceType; quote?: any; error?: string }>>
+SFA.getAllQuote(params: GetAllQuoteParams): Promise<Array<{ serviceType: Service; quote?: any; error?: string }>>
 ```
 
 #### Request Parameters
 
 ```typescript
 interface GetAllQuoteParams {
-  singleService?: ServiceType;        // Optional: query specific service only
+  singleService?: Service;        // Optional: query specific service only
   dry?: boolean;                      // true = test mode, no real deposit address
   minInputAmount?: string;            // Minimum input amount (default: "1")
   prices: Record<string, string>;     // Token prices (USD)
@@ -212,7 +212,7 @@ Executes cross-chain transactions, automatically handling token approval (if nee
 
 ```typescript
 SFA.send(
-  serviceType: ServiceType,
+  serviceType: Service,
   params: {
     wallet: WalletConfig;
     quote: any;
@@ -224,7 +224,7 @@ SFA.send(
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `serviceType` | `ServiceType` | Bridge service type: `"oneclick" \| "cctp" \| "usdt0"` |
+| `serviceType` | `Service` | Bridge service type: `"oneclick" \| "cctp" \| "usdt0" \| "fraxzero" \| "fraxzero-oneclick" \| "oneclick-fraxzero" \| "usdt0-oneclick" \| "oneclick-usdt0" \| "native"` |
 | `params.wallet` | `WalletConfig` | Wallet instance |
 | `params.quote` | `any` | Quote object returned from `getAllQuote` |
 
@@ -276,7 +276,7 @@ Queries the current status of cross-chain transactions, supporting status querie
 
 ```typescript
 SFA.getStatus(
-  serviceType: ServiceType,
+  serviceType: Service,
   params: {
     depositAddress?: string;
     hash?: string;
@@ -288,7 +288,7 @@ SFA.getStatus(
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `serviceType` | `ServiceType` | Bridge service type |
+| `serviceType` | `Service` | Bridge service type |
 | `params.depositAddress` | `string?` | Deposit address (used for OneClick service) |
 | `params.hash` | `string?` | Transaction hash (used for USDT0 and CCTP services) |
 
@@ -332,7 +332,7 @@ if (status1.toChainTxHash) {
 
 ```typescript
 async function pollTransactionStatus(
-  serviceType: ServiceType,
+  serviceType: Service,
   params: { depositAddress?: string; hash?: string },
   interval: number = 5000
 ): Promise<{ status: TransactionStatus; toChainTxHash?: string }> {
@@ -482,7 +482,7 @@ interface TokenConfig {
   decimals: number;           // Token decimals (6, 18, etc.)
   contractAddress: string;    // Contract address
   assetId: string;           // StableFlow asset identifier
-  services: ServiceType[];   // Array of supported bridge services
+  services: Service[];   // Array of supported bridge services
   rpcUrl?: string;           // RPC endpoint URL
   nativeToken?: {            // Native token information
     symbol: string;
@@ -783,7 +783,7 @@ const formatted = ethers.formatUnits(smallestUnit, decimals);
 Compare multiple quotes and select the best option:
 
 ```typescript
-function compareQuotes(quotes: Array<{ serviceType: ServiceType; quote?: any; error?: string }>) {
+function compareQuotes(quotes: Array<{ serviceType: Service; quote?: any; error?: string }>) {
   const validQuotes = quotes.filter(q => q.quote && !q.error);
   
   if (validQuotes.length === 0) {
@@ -865,10 +865,10 @@ function validateNetworks(fromTokenAddress: string, toTokenAddress: string) {
 Implement exponential backoff for status polling:
 
 ```typescript
-import { SFA, ServiceType, TransactionStatus } from 'stableflow-ai-sdk';
+import { SFA, Service, TransactionStatus } from 'stableflow-ai-sdk';
 
 async function pollStatus(
-  serviceType: ServiceType,
+  serviceType: Service,
   params: { depositAddress?: string; hash?: string }
 ) {
   let delay = 2000;  // Start with 2 seconds
@@ -1101,7 +1101,7 @@ async function calculateFees(
 Automatically compare all available routes and select the best option:
 
 ```typescript
-function selectBestQuote(quotes: Array<{ serviceType: ServiceType; quote?: any; error?: string }>) {
+function selectBestQuote(quotes: Array<{ serviceType: Service; quote?: any; error?: string }>) {
   const validQuotes = quotes.filter(q => q.quote && !q.error);
   
   if (validQuotes.length === 0) {
@@ -1463,8 +1463,8 @@ async function pollUntilComplete(serviceType, params) {
 | Function | Purpose | Required Fields |
 |----------|---------|----------------|
 | `getAllQuote()` | Get quotes from all bridge services | JWT Token, TokenConfig, WalletConfig, amount, etc. |
-| `send()` | Execute cross-chain transaction | ServiceType, WalletConfig, Quote |
-| `getStatus()` | Query transaction status | ServiceType, depositAddress or hash |
+| `send()` | Execute cross-chain transaction | Service, WalletConfig, Quote |
+| `getStatus()` | Query transaction status | Service, depositAddress or hash |
 | `tokens` | Pre-configured token list | No parameters, direct import |
 
 ### Deprecated APIs (v1.0)

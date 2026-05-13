@@ -1,5 +1,5 @@
 import { SendType } from "../core/Send";
-import { ServiceType } from "../core/Service";
+import { Service } from "../core/Service";
 import { TokenConfig } from "./Token";
 
 export interface WalletConfig {
@@ -28,7 +28,7 @@ export interface WalletConfig {
   }): Promise<boolean>;
 
   quote(
-    type: ServiceType,
+    type: Service,
     params: {}
   ): Promise<{
     needApprove?: boolean;

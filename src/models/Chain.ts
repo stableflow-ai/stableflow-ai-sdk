@@ -1,17 +1,20 @@
-import { ChainType } from "../wallets/config/chains";
-
 export interface ChainConfig {
   chainName: string;
+  chainId?: number;
+  /**
+   * SDA.getTokens() blockchain
+   */
   blockchain: string;
   chainIcon: string;
   chainIconGray: string;
-  chainType: ChainType;
-  chainId?: number;
+  chainType: string;
   blockExplorerUrl: string;
+  blockExplorerUrls: string[];
   primaryColor: string;
   nativeToken: {
     symbol: string;
     decimals: number;
   };
   rpcUrls: string[];
+  rpcUrl: string;
 }

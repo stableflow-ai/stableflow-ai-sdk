@@ -1,4 +1,4 @@
-import { ServiceType } from "../core/Service";
+import { Service } from "../core/Service";
 import { ChainConfig } from "./Chain";
 
 export interface TokenConfig extends ChainConfig {
@@ -8,5 +8,5 @@ export interface TokenConfig extends ChainConfig {
   icon: string;
   assetId: string;
   contractAddress: string;
-  services: ServiceType[];
+  services: Service[];
 }

@@ -11,7 +11,7 @@ import type { ApiResult } from './ApiResult';
 import { CancelablePromise } from './CancelablePromise';
 import type { OnCancel } from './CancelablePromise';
 import type { OpenAPIConfig } from './OpenAPI';
-import { cslError, cslInfo, cslSuccess } from '../utils/log';
+import { Csl } from '../utils/log';
 
 export const isDefined = <T>(value: T | null | undefined): value is Exclude<T, null | undefined> => {
     return value !== undefined && value !== null;
@@ -292,6 +292,7 @@ export const catchErrorCodes = (options: ApiRequestOptions, result: ApiResult): 
  * @throws ApiError
  */
 export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, axiosClient: AxiosInstance = axios): CancelablePromise<T> => {
+    const csl = new Csl(config.DEBUG);
     return new CancelablePromise(async (resolve, reject, onCancel) => {
         try {
             const url = getUrl(config, options);
@@ -299,17 +300,17 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
             const body = getRequestBody(options);
             const headers = await getHeaders(config, options, formData);
 
-            cslInfo(config.DEBUG, '\n🔵 ========== API Request ==========');
-            cslInfo(config.DEBUG, 'Method:', options.method);
-            cslInfo(config.DEBUG, 'URL:', url);
-            cslInfo(config.DEBUG, 'Headers:', JSON.stringify(headers, null, 2));
+            csl.simple('\n🔵 ========== API Request ==========');
+            csl.simple('Method:', options.method);
+            csl.simple('URL:', url);
+            csl.simple('Headers:', JSON.stringify(headers, null, 2));
             if (body) {
-                cslInfo(config.DEBUG, 'Body:', JSON.stringify(body, null, 2));
+                csl.simple('Body:', JSON.stringify(body, null, 2));
             }
             if (formData) {
-                cslInfo(config.DEBUG, 'FormData:', formData);
+                csl.simple('FormData:', formData);
             }
-            cslInfo(config.DEBUG, '====================================\n');
+            csl.simple('====================================\n');
 
             if (!onCancel.isCancelled) {
                 const response = await sendRequest<T>(config, options, url, body, formData, headers, onCancel, axiosClient);
@@ -326,24 +327,24 @@ export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions, ax
 
                 catchErrorCodes(options, result);
 
-                cslSuccess(config.DEBUG, '\n🟢 ========== API Response ==========');
-                cslSuccess(config.DEBUG, 'Status:', response.status, response.statusText);
-                cslSuccess(config.DEBUG, 'Response Headers:', JSON.stringify(response.headers, null, 2));
-                cslSuccess(config.DEBUG, 'Response Body:', JSON.stringify(responseBody, null, 2));
-                cslSuccess(config.DEBUG, '=====================================\n');
+                csl.simple('\n🟢 ========== API Response ==========');
+                csl.simple('Status:', response.status, response.statusText);
+                csl.simple('Response Headers:', JSON.stringify(response.headers, null, 2));
+                csl.simple('Response Body:', JSON.stringify(responseBody, null, 2));
+                csl.simple('=====================================\n');
 
                 resolve(result.body);
             }
         } catch (error) {
-            cslError(config.DEBUG, '\n🔴 ========== API Error ==========');
-            cslError(config.DEBUG, 'Error:', error);
+            csl.simple('\n🔴 ========== API Error ==========');
+            csl.simple('Error:', error);
             if (error instanceof ApiError) {
-                cslError(config.DEBUG, 'Status:', error.status);
-                cslError(config.DEBUG, 'Status Text:', error.statusText);
-                cslError(config.DEBUG, 'URL:', error.url);
-                cslError(config.DEBUG, 'Body:', JSON.stringify(error.body, null, 2));
+                csl.simple('Status:', error.status);
+                csl.simple('Status Text:', error.statusText);
+                csl.simple('URL:', error.url);
+                csl.simple('Body:', JSON.stringify(error.body, null, 2));
             }
-            cslError(config.DEBUG, '==================================\n');
+            csl.simple('==================================\n');
             reject(error);
         }
     });

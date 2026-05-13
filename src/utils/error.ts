@@ -1,8 +1,8 @@
 import Big from "big.js";
-import { Service, ServiceType } from "../core/Service";
+import { Service } from "../core/Service";
 import { TokenConfig } from "../models/Token";
 
-export const formatQuoteError = (error: any, options: { service: ServiceType; fromToken: TokenConfig; }) => {
+export const formatQuoteError = (error: any, options: { service: Service; fromToken: TokenConfig; }) => {
   const { service, fromToken } = options;
 
   const defaultErrorMessage = "Failed to get quote, please try again later";

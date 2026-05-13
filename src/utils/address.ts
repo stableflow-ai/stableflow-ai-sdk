@@ -1,5 +1,237 @@
+import { Address } from "@ton/ton";
 import bs58 from "bs58";
 import { zeroPadValue } from "ethers";
+
+// Address validation utilities for different blockchains
+
+export interface AddressValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+/**
+ * Validates an address based on the target blockchain
+ * @param address - The address to validate
+ * @param blockchain - The target blockchain key
+ * @returns AddressValidationResult with validation status and error message
+ */
+export function validateAddress(
+  address: string,
+  blockchain: string
+): AddressValidationResult {
+  if (!address.trim()) {
+    return {
+      isValid: false,
+      error: "Address cannot be empty"
+    };
+  }
+
+  const trimmedAddress = address.trim();
+
+  switch (blockchain) {
+    case "near":
+      return validateNearAddress(trimmedAddress);
+    case "sol":
+      return validateSolanaAddress(trimmedAddress);
+    case "evm":
+      return validateEthereumAddress(trimmedAddress);
+    case "aptos":
+      return validateAptosAddress(trimmedAddress);
+    case "tron":
+      return validateTronAddress(trimmedAddress);
+    case "ton":
+      return validateTonAddress(trimmedAddress);
+    default:
+      return {
+        isValid: false,
+        error: "Unsupported blockchain"
+      };
+  }
+}
+
+/**
+ * Validates a NEAR address
+ * Supports named accounts (alice.near, burrow.sputnik-dao.near) and
+ * implicit accounts (64-char hex public key hash).
+ */
+function validateNearAddress(address: string): AddressValidationResult {
+  // Length check
+  if (address.length < 2 || address.length > 64) {
+    return {
+      isValid: false,
+      error: "NEAR address must be 2-64 characters long"
+    };
+  }
+
+  // Additional checks
+  if (address.startsWith(".") || address.endsWith(".")) {
+    return {
+      isValid: false,
+      error: "NEAR address cannot start or end with a dot"
+    };
+  }
+
+  if (address.includes("..")) {
+    return {
+      isValid: false,
+      error: "NEAR address cannot contain consecutive dots"
+    };
+  }
+
+  // NEAR implicit accounts: 64-char hex string
+  if (/^[0-9a-f]{64}$/i.test(address)) {
+    return { isValid: true };
+  }
+
+  // Named account: letters, numbers and separators ., -, _
+  const nearPattern = /^[a-zA-Z0-9._-]+$/;
+  if (!nearPattern.test(address)) {
+    return {
+      isValid: false,
+      error: "Invalid NEAR address"
+    };
+  }
+
+  // Every account label should start/end with alphanumeric.
+  const labelPattern = /^[a-zA-Z0-9](?:[a-zA-Z0-9_-]*[a-zA-Z0-9])?$/;
+  const labels = address.split(".");
+  if (!labels.every(label => labelPattern.test(label))) {
+    return {
+      isValid: false,
+      error: "NEAR address labels must start/end with letters or numbers"
+    };
+  }
+
+  // Named NEAR account cannot be purely numeric.
+  if (/^\d+$/.test(address)) {
+    return {
+      isValid: false,
+      error: "NEAR address cannot be purely numeric"
+    };
+  }
+
+  const hasLetterPattern = /[a-zA-Z]/;
+  if (!hasLetterPattern.test(address)) {
+    return {
+      isValid: false,
+      error: "NEAR address must contain at least one letter"
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates a Solana address
+ * Solana addresses are base58 encoded and typically 32-44 characters long
+ */
+function validateSolanaAddress(address: string): AddressValidationResult {
+  // Solana address pattern: base58 encoded, typically 32-44 characters
+  const solanaPattern = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+  if (!solanaPattern.test(address)) {
+    return {
+      isValid: false,
+      error: "Invalid Solana address"
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates an Ethereum address (used for Arbitrum)
+ * Ethereum addresses are 42 characters long, starting with 0x
+ */
+function validateEthereumAddress(address: string): AddressValidationResult {
+  // Ethereum address pattern: 0x followed by 40 hexadecimal characters
+  const ethereumPattern = /^0x[a-fA-F0-9]{40}$/;
+
+  if (!ethereumPattern.test(address)) {
+    return {
+      isValid: false,
+      error: "Invalid Ethereum address"
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates an Aptos address
+ * Aptos addresses are 32 bytes (64 hex characters), optionally prefixed with 0x
+ */
+function validateAptosAddress(address: string): AddressValidationResult {
+  // Aptos address can be with or without 0x prefix
+  // With 0x: 0x + 64 hex characters = 66 characters total
+  // Without 0x: 64 hex characters
+  const aptosPatternWithPrefix = /^0x[a-fA-F0-9]{64}$/;
+  const aptosPatternWithoutPrefix = /^[a-fA-F0-9]{64}$/;
+
+  if (!aptosPatternWithPrefix.test(address) && !aptosPatternWithoutPrefix.test(address)) {
+    return {
+      isValid: false,
+      error: "Invalid Aptos address"
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates a TON address
+ * TON addresses can be in user-friendly format (EQ...) or raw format (workchain:hash)
+ */
+function validateTonAddress(address: string): AddressValidationResult {
+  try {
+    Address.parse(address);
+    return { isValid: true };
+  } catch {
+    return {
+      isValid: false,
+      error: "Invalid TON address"
+    };
+  }
+}
+
+/**
+ * Validates a Tron address
+ * Tron addresses are Base58 encoded, starting with T, and 34 characters long
+ */
+function validateTronAddress(address: string): AddressValidationResult {
+  // Tron address pattern: Base58 encoded, starts with T, 34 characters long
+  // Base58 alphabet: 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz (no 0, O, I, l)
+  const tronPattern = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
+
+  if (!tronPattern.test(address)) {
+    return {
+      isValid: false,
+      error: "Invalid Tron address"
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Gets a placeholder text for the address input based on the target blockchain
+ */
+export function getAddressPlaceholder(blockchain: string): string {
+  switch (blockchain) {
+    case "near":
+      return "Enter NEAR wallet address (e.g., alice.near or 64-char hex)";
+    case "sol":
+      return "Enter Solana wallet address (e.g., 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM)";
+    case "arb":
+      return "Enter Ethereum/Arbitrum wallet address (e.g., 0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6)";
+    case "aptos":
+      return "Enter Aptos wallet address (e.g., 0x93493b07d031c4f18ad1e874575761be7e47d4cea5c81d538600e8ec72d6ab1c)";
+    case "tron":
+      return "Enter Tron wallet address (e.g., TG4cfJGzvmpWxYyQKSosCWTacKCxEwSiKw)";
+    default:
+      return "Enter recipient wallet address";
+  }
+}
 
 /**
  * Convert Tron address to bytes32 format (for LayerZero OFT)
@@ -118,6 +350,24 @@ export function bytes32ToSolanaAddress(bytes32Address: string) {
   return bs58.encode(buffer);
 }
 
+/**
+ * Converts TON address to bytes32 format (for LayerZero OFT)
+ * @param {string} tonAddress - TON address in user-friendly (EQ...) or raw (0:hash) format
+ * @returns {string} Address in bytes32 format (0x + 32-byte hash as hex)
+ */
+export function tonAddressToBytes32(tonAddress: string) {
+  try {
+    const address = Address.parse(tonAddress);
+    if (address.hash.length !== 32) {
+      throw new Error("Invalid TON address hash length");
+    }
+    return "0x" + address.hash.toString("hex");
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(`Failed to convert TON address: ${message}`);
+  }
+}
+
 export function addressToBytes32(chainType: string, address: string) {
   if (chainType === "evm") {
     return zeroPadValue(address, 32);
@@ -128,4 +378,8 @@ export function addressToBytes32(chainType: string, address: string) {
   if (chainType === "tron") {
     return tronAddressToBytes32(address);
   }
+  if (chainType === "ton") {
+    return tonAddressToBytes32(address);
+  }
+  return address;
 }

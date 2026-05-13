@@ -1,16 +1,22 @@
 import oneClickService from "./oneclick";
 import usdt0Service from "./usdt0";
 import cctpService from "./cctp";
-import { Service, ServiceType } from "../core/Service";
+import fraxzeroService from "./fraxzero";
+import fraxZeroOneClickService from "./fraxzero/to-oneclick";
+import oneClickFraxZeroService from "./fraxzero/from-oneclick";
+import usdt0OneClickService from "./usdt0/to-oneclick";
+import oneClickUsdt0Service from "./usdt0/from-oneclick";
+import nativeService from "./native";
+import { Service } from "../core/Service";
 
-export const ServiceMap: Record<ServiceType, any> = {
+export const ServiceMap: Record<Service, any> = {
   [Service.OneClick]: oneClickService,
   [Service.Usdt0]: usdt0Service,
   [Service.CCTP]: cctpService,
-};
-
-export const ServiceLogoMap: Record<ServiceType, string> = {
-  [Service.OneClick]: "/bridge/logo-near-intents.png",
-  [Service.Usdt0]: "/bridge/logo-usdt0.svg",
-  [Service.CCTP]: "/bridge/logo-circle.avif",
+  [Service.FraxZero]: fraxzeroService,
+  [Service.FraxZeroOneClick]: fraxZeroOneClickService,
+  [Service.OneClickFraxZero]: oneClickFraxZeroService,
+  [Service.Usdt0OneClick]: usdt0OneClickService,
+  [Service.OneClickUsdt0]: oneClickUsdt0Service,
+  [Service.Native]: nativeService,
 };

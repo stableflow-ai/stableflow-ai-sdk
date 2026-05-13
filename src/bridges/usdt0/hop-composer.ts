@@ -1,13 +1,22 @@
 import { ethers } from "ethers";
 import { USDT0_CONFIG } from "./config";
 import { OFT_ABI } from "./contract";
-import { getRpcUrls } from "../../wallets/config/rpcs";
+import { ExecTime } from "../../utils/exec-time";
+import { OpenAPI } from "../../core/OpenAPI";
+import { usdt0Chains } from "../../wallets/config/usdt0";
+import { evmRpcFallbackProvider } from "../../utils/evm-rpc-providers";
+import { Csl } from "../../utils/log";
 
 export const getHopMsgFee = async (params: any) => {
   const {
     sendParam,
     toToken,
   } = params;
+
+  const cs = new Csl(OpenAPI.DEBUG);
+  const csl = cs.log;
+
+  const execTime = new ExecTime({ type: "getHopMsgFee", logStyle: "lime-800", isDebug: OpenAPI.DEBUG });
 
   const originLayerzero = USDT0_CONFIG["Arbitrum"];
   const destinationLayerzero = USDT0_CONFIG[toToken.chainName];
@@ -19,18 +28,23 @@ export const getHopMsgFee = async (params: any) => {
     arbitrumOft = originLayerzero.oftLegacy || originLayerzero.oft;
   }
 
-  const provider = new ethers.JsonRpcProvider(getRpcUrls("arb")[0]);
-  const oftContractRead = new ethers.Contract(arbitrumOft, OFT_ABI, provider);
+  execTime.breakpoint();
+  const provider = evmRpcFallbackProvider(usdt0Chains["arb"]);
+  const oftContractRead = new ethers.Contract(arbitrumOft!, OFT_ABI, provider);
+  execTime.log("provider init");
 
   try {
+    execTime.breakpoint();
     const msgFee = await oftContractRead.quoteSend.staticCall(sendParam, false);
+    execTime.log("quoteSend");
 
     const [nativeFee] = msgFee;
 
-    // 20% buffer
-    return nativeFee * 120n / 100n;
+    execTime.logTotal("getHopMsgFee");
+
+    return nativeFee * 100n / 100n;
   } catch (error) {
-    console.log("getHopMsgFee failed: %o", error);
+    csl("getHopMsgFee", "red-500", "getHopMsgFee failed: %o", error);
     throw new Error("Quote multi hop message fee failed");
   }
 };

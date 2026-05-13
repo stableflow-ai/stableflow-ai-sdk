@@ -14,10 +14,33 @@ export const NetworkRpcUrlsMap: Record<string, string[]> = {
   "near": ["https://nearinner.deltarpc.com"],
   "xlayer": ["https://rpc.xlayer.tech"],
   "plasma": ["https://rpc.plasma.to"],
+  "mantle": ["https://rpc.mantle.xyz", "https://mantle-rpc.publicnode.com"],
+  "megaeth": ["https://mainnet.megaeth.com/rpc"],
+  "ink": ["https://rpc-gel.inkonchain.com", "https://rpc-qnd.inkonchain.com"],
+  "stable": ["https://rpc.stable.xyz"],
+  "celo": ["https://forno.celo.org"],
+  "sei": ["https://sei-evm-rpc.publicnode.com"],
+  "flare": ["https://flare-api.flare.network/ext/C/rpc"],
+  "frax": ["https://rpc.frax.com"],
+  "ton": ["https://toncenter.com/api/v2/jsonRPC"],
+  "sui": ["https://fullnode.mainnet.sui.io:443"],
+  "katana": ["https://rpc.katana.network", "https://katana.drpc.org"],
 };
 
+/**
+ * @deprecated Please use getChainRpcUrl instead
+ * @param blockchain 
+ * @returns 
+ */
 export const getRpcUrls = (blockchain: string): string[] => {
   return NetworkRpcUrlsMap[blockchain] || [];
+};
+
+export const getChainRpcUrl = (blockchain: string): { rpcUrls: string[]; rpcUrl: string; } => {
+  return {
+    rpcUrls: NetworkRpcUrlsMap[blockchain],
+    rpcUrl: NetworkRpcUrlsMap[blockchain][0],
+  };
 };
 
 export const setRpcUrls = (urls: Record<string, string[]>) => {

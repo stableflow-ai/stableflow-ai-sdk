@@ -15,29 +15,15 @@ export const usdtChains: Record<string, TokenConfig> = {
     assetId: "nep141:eth-0xdac17f958d2ee523a2206206994597c13d831ec7.omft.near",
     contractAddress: "0xdac17f958d2ee523a2206206994597c13d831ec7",
     ...chains.eth,
-    services: [Service.OneClick, Service.Usdt0],
-  },
-  arb: {
-    ...usdt,
-    assetId: "nep141:arb-0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9.omft.near",
-    contractAddress: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-    ...chains.arb,
-    services: [Service.OneClick, Service.Usdt0],
-  },
-  pol: {
-    ...usdt,
-    assetId: "nep245:v2_1.omni.hot.tg:137_3hpYoaLtt8MP1Z2GH1U473DMRKgr",
-    contractAddress: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
-    ...chains.pol,
-    services: [Service.OneClick, Service.Usdt0],
+    services: [Service.OneClick, Service.Usdt0, Service.Native],
   },
   bsc: {
     ...usdt,
-    decimals: 18,
     assetId: "nep245:v2_1.omni.hot.tg:56_2CMMyVTGZkeyNZTSvS5sarzfir6g",
     contractAddress: "0x55d398326f99059ff775485246999027b3197955",
     ...chains.bsc,
-    services: [Service.OneClick],
+    decimals: 18,
+    services: [Service.OneClick, Service.Native],
   },
   op: {
     ...usdt,
@@ -53,6 +39,14 @@ export const usdtChains: Record<string, TokenConfig> = {
     ...chains.avax,
     services: [Service.OneClick],
   },
+  // disabled gnosis temporarily, 22/Oct/2025
+  // gnosis: {
+  //   ...usdt,
+  //   assetId: "nep141:gnosis-0x4ecaba5870353805a9f068101a40e0f32ed605c6.omft.near",
+  //   contractAddress: "0x4ecaba5870353805a9f068101a40e0f32ed605c6",
+  //   ...chains.gnosis,
+  //   services: [Service.OneClick],
+  // },
   near: {
     ...usdt,
     assetId: "nep141:usdt.tether-token.near",
@@ -81,25 +75,46 @@ export const usdtChains: Record<string, TokenConfig> = {
     ...chains.aptos,
     services: [Service.OneClick],
   },
-  bera: {
+  ton: {
     ...usdt,
-    assetId: "nep141:bera-0x779ded0c9e1022225f8e0630b35a9b54be713736.omft.near",
-    contractAddress: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
-    ...chains.bera,
+    assetId: "nep245:v2_1.omni.hot.tg:1117_3tsdfyziyc7EJbP2aULWSKU4toBaAcN4FdTgfm5W1mC4ouR",
+    contractAddress: "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs",
+    ...chains.ton,
     services: [Service.OneClick, Service.Usdt0],
   },
-  xlayer: {
-    ...usdt,
-    assetId: "nep245:v2_1.omni.hot.tg:196_2fezDCvVYRsG8wrK6deJ2VRPiAS1",
-    contractAddress: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
-    ...chains.xlayer,
-    services: [Service.OneClick, Service.Usdt0],
-  },
-  plasma: {
-    ...usdt,
-    assetId: "nep245:v2_1.omni.hot.tg:9745_3aL9skCy1yhPoDB8oKMmRHRN7SJW",
-    contractAddress: "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb",
-    ...chains.plasma,
-    services: [Service.OneClick],
-  },
+};
+
+export const usdtSol = {
+  ...usdt,
+  ...usdtChains.sol,
+  chains: [usdtChains.sol],
+};
+
+export const usdtNear = {
+  ...usdt,
+  ...usdtChains.near,
+  chains: [usdtChains.near],
+};
+
+export const usdtEvm = {
+  ...usdt,
+  chains: Object.values(usdtChains).filter((chain) => chain.chainType === "evm")
+};
+
+export const usdtTron = {
+  ...usdt,
+  ...usdtChains.tron,
+  chains: [usdtChains.tron],
+};
+
+export const usdtAptos = {
+  ...usdt,
+  ...usdtChains.aptos,
+  chains: [usdtChains.aptos],
+};
+
+export const usdtTon = {
+  ...usdt,
+  ...usdtChains.ton,
+  chains: [usdtChains.ton],
 };

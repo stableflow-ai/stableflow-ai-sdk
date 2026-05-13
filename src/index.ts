@@ -40,9 +40,10 @@ export {
 
 // Export tokens
 export type { TokenConfig } from './models/Token';
-export { tokens, usdtTokens, usdcTokens } from './wallets/config/tokens';
+export { tokens, usdtTokens, usdcTokens, frxusdTokens } from './wallets/config/tokens';
 export { usdtChains } from './wallets/config/usdt';
 export { usdcChains } from './wallets/config/usdc';
+export { frxusdChains } from './wallets/config/frxusd';
 
 // Export wallets
 export { NearWallet } from './wallets/near';
@@ -50,6 +51,8 @@ export { SolanaWallet } from './wallets/solana';
 export { EVMWallet } from './wallets/evm';
 export { TronWallet } from './wallets/tron';
 export { AptosWallet } from './wallets/aptos';
+export { TonWallet } from './wallets/ton';
+export { SuiWallet } from './wallets/sui';
 
 export { Service } from './core/Service';
 export { ServiceType } from './core/Service';

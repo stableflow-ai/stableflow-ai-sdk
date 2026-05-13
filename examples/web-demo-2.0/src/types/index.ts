@@ -1,7 +1,7 @@
-import type { ServiceType, TokenConfig } from 'stableflow-ai-sdk';
+import type { Service, TokenConfig } from 'stableflow-ai-sdk';
 
 export interface QuoteResult {
-  serviceType: ServiceType;
+  serviceType: Service;
   quote?: any;
   error?: string;
 }
@@ -19,7 +19,7 @@ export interface Transaction {
   toChainTxHash?: string;
   status: 'pending' | 'processing' | 'success' | 'failed';
   timestamp: number;
-  serviceType?: ServiceType;
+  serviceType?: Service;
   depositAddress?: string;
 }
 

@@ -14,7 +14,7 @@ if (JWT_TOKEN) {
 
 setRpcUrls({
   "arb": ["https://arbitrum-one-rpc.publicnode.com"],
-  "eth": ["https://ethereum-rpc.publicnode.com"],
+  "eth": ["https://0xrpc.io/eth"],
   "bsc": ["https://bsc-rpc.publicnode.com"],
   "avax": ["https://avalanche-c-chain-rpc.publicnode.com"],
   "base": ["https://base-rpc.publicnode.com"],

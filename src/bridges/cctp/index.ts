@@ -4,36 +4,22 @@ import { OpenAPI } from '../../core/OpenAPI';
 import { request } from '../../core/request';
 import { SendType } from "../../core/Send";
 import { Service } from "../../core/Service";
+import Big from "big.js";
+import { numberRemoveEndZero } from "../../utils/number";
+import { ExecTime } from "../../utils/exec-time";
 
 export const PayInLzToken = false;
 
-const excludeFees: string[] = ["estimateApproveGasUsd"];
+const excludeFees: string[] = ["estimateGasUsd"];
 
-class CCTPService {
+export class CCTPService {
   constructor() {
-  }
-
-  public async quoteSignature(params: any) {
-    const response: any = await request(OpenAPI, {
-      method: 'POST',
-      url: "/v0/cctp/sign",
-      body: params,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      errors: {
-        400: `Bad Request - Invalid input data`,
-        401: `Unauthorized - JWT token is invalid`,
-      },
-    });
-    return response.data ?? {};
   }
 
   public async quote(params: any) {
     const {
+      dry,
       wallet,
-      // originChain,
-      // destinationChain,
       amountWei,
       refundTo,
       recipient,
@@ -43,11 +29,15 @@ class CCTPService {
       prices,
     } = params;
 
+    const _quoteType = `CCTPService ${fromToken?.chainName}->${toToken?.chainName}`;
+    const execTime = new ExecTime({ type: _quoteType, logStyle: "indigo-500", isDebug: OpenAPI.DEBUG });
+
     const sourceDomain = CCTP_DOMAINS[fromToken.chainName];
     const destinationDomain = CCTP_DOMAINS[toToken.chainName];
     const proxyAddress = CCTP_TOKEN_PROXY[fromToken.chainName];
 
-    return wallet.quote(Service.CCTP, {
+    const result = await wallet.quote(Service.CCTP, {
+      dry,
       proxyAddress,
       abi: CCTP_TOKEN_PROXY_ABI,
       amountWei,
@@ -61,6 +51,43 @@ class CCTPService {
       destinationDomain,
       sourceDomain,
     });
+
+    execTime.logTotal("CCTPService.quote");
+
+    return result;
+  }
+
+  public async estimateTransaction(params: any, quoteData: any) {
+    const {
+      fromToken,
+      wallet,
+      prices,
+      evmGasFees,
+    } = params;
+
+    const result: any = { fees: {}, ...quoteData };
+
+    const ett = await wallet.estimateTransaction({
+      dry: false,
+      ...quoteData.sendParam,
+      fromToken,
+      prices,
+      evmGasFees,
+    });
+    result.fees.estimateGasUsd = ett.estimateSourceGasUsd;
+    result.estimateSourceGas = ett.estimateSourceGas;
+    result.estimateSourceGasUsd = ett.estimateSourceGasUsd;
+
+    result.totalFeesUsd = "0";
+    for (const feeKey in result.fees) {
+      if (excludeFees.includes(feeKey) || !/Usd$/.test(feeKey)) {
+        continue;
+      }
+      result.totalFeesUsd = Big(result.totalFeesUsd || 0).plus(result.fees[feeKey] || 0);
+    }
+    result.totalFeesUsd = numberRemoveEndZero(Big(result.totalFeesUsd).toFixed(20));
+
+    return result;
   }
 
   public async send(params: any) {

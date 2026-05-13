@@ -11,33 +11,94 @@ import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 import { ServiceMap } from '../bridges';
-import { Service, type ServiceType } from '../core/Service';
+import { Service, ServiceBackend } from '../core/Service';
 import { TokenConfig } from '../models/Token';
 import { WalletConfig } from '../models/Wallet';
 import Big from 'big.js';
 import { tokens } from '../wallets/config/tokens';
 import { TransactionStatus } from '../models/Status';
 import { formatQuoteError } from '../utils/error';
+import { getRouteStatus } from '../utils/service';
 
 export interface GetAllQuoteParams {
-    singleService?: ServiceType;
+    /**
+     * Optional: query specific service only
+     * @example Service.OneClick
+     */
+    singleService?: Service;
+    /**
+     * Optional: disabled services
+     * @example [Service.OneClick, Service.Usdt0]
+     * @description If Service.OneClick is disabled, combined routes involving Service.OneClick will also be disabled: Service.OneClickUsdt0, Service.Usdt0OneClick, Service.OneClickFraxZero, Service.FraxZeroOneClick
+     * Other combined routes are the same
+     */
+    disabledServices?: Service[];
+    /**
+     * Flag indicating whether this is a dry run request.
+     * If `true`, the response will **NOT** contain the following fields:
+     * - `depositAddress`
+     */
     dry?: boolean;
+    /**
+     * Token prices (USD)
+     * @example { "USDC": "1.001", "USDT": "0.998" }
+     */
     prices: Record<string, string>;
+    /**
+     * Source token configuration
+     */
     fromToken: TokenConfig;
+    /**
+     * Destination token configuration
+     */
     toToken: TokenConfig;
+    /**
+     * Wallet instance (EVMWallet, SolanaWallet, etc.)
+     */
     wallet: WalletConfig;
+    /**
+     * Recipient address on destination chain
+     */
     recipient: string;
+    /**
+     * Refund address on source chain
+     */
     refundTo: string;
+    /**
+     * Amount in smallest units (e.g., wei/etc.)
+     */
     amountWei: string;
+    /**
+     * Slippage tolerance
+     * @example 0.5 (0.5%)
+     */
     slippageTolerance: number;
+    /**
+     * Minimum input amount
+     */
     minInputAmount?: string;
-    // @deprecated please use oneclickParams instead
+    /**
+     * OneClick route bridge fee
+     * @deprecated Please migrate this parameter to oneclickParams as soon as possible; it will be removed in the next version.
+     */
     appFees?: { recipient: string; fee: number; }[];
+    /**
+     * OneClick route parameters
+     */
     oneclickParams?: {
+        /**
+         * OneClick route bridge fee
+         */
         appFees?: { recipient: string; fee: number; }[];
-        // default is EXACT_INPUT
+        /**
+         * default is EXACT_INPUT
+         */
         swapType?: "EXACT_INPUT" | "EXACT_OUTPUT";
-        // default is true
+        /**
+         * Flag indicating whether use proxy contract to oneclick route
+         * use proxy contract to oneclick route can fixed the transfer contract address
+         * default is true
+         */
         isProxy?: boolean;
     };
 }
@@ -182,10 +243,10 @@ export class SFA {
      * @returns Promise resolving to an array of quote results with service type information
      * @throws Error if all bridge services fail or if required parameters are missing
      */
-    public static async getAllQuote(params: GetAllQuoteParams): Promise<Array<{ serviceType: ServiceType; quote?: any; error?: string }>> {
-        const results: Array<{ serviceType: ServiceType; quote?: any; error?: string }> = [];
+    public static async getAllQuote(params: GetAllQuoteParams): Promise<Array<{ serviceType: Service; quote?: any; error?: string }>> {
+        const results: Array<{ serviceType: Service; quote?: any; error?: string }> = [];
 
-        let { minInputAmount = "1" } = params;
+        let { minInputAmount = "1", disabledServices } = params;
         if (Big(minInputAmount).lte(0)) {
             minInputAmount = "1";
         }
@@ -203,33 +264,40 @@ export class SFA {
             throw new Error('Invalid parameters');
         }
 
-        const formatQuoteParams = (service: ServiceType) => {
+        const formatQuoteParams = (service: Service) => {
             const _params: any = {
-                slippageTolerance: params.slippageTolerance,
+                dry: params.dry,
+                amountWei: params.amountWei,
                 refundTo: params.refundTo || "",
                 recipient: params.recipient,
                 wallet: params.wallet,
                 fromToken: params.fromToken,
                 toToken: params.toToken,
                 prices: params.prices,
-                amountWei: params.amountWei,
+                slippageTolerance: params.slippageTolerance,
             };
-            if (service === Service.OneClick) {
-                _params.dry = params.dry;
+
+            if (([
+                Service.OneClick,
+                Service.Usdt0OneClick,
+                Service.OneClickUsdt0,
+                Service.FraxZeroOneClick,
+                Service.OneClickFraxZero,
+            ] as Service[]).includes(service)) {
                 _params.slippageTolerance = params.slippageTolerance * 100;
                 _params.originAsset = params.fromToken.assetId;
                 _params.destinationAsset = params.toToken.assetId;
-                _params.amount = params.amountWei;
                 _params.refundType = "ORIGIN_CHAIN";
                 _params.appFees = params.oneclickParams?.appFees || params.appFees;
                 _params.swapType = params.oneclickParams?.swapType;
                 _params.isProxy = params.oneclickParams?.isProxy;
             }
-            if (service === Service.Usdt0) {
-                _params.originChain = params.fromToken.chainName;
-                _params.destinationChain = params.toToken.chainName;
-            }
-            if (service === Service.CCTP) {
+            if (([
+                Service.Usdt0,
+                Service.CCTP,
+                Service.Usdt0OneClick,
+                Service.OneClickUsdt0
+            ] as Service[]).includes(service)) {
                 _params.originChain = params.fromToken.chainName;
                 _params.destinationChain = params.toToken.chainName;
             }
@@ -243,20 +311,77 @@ export class SFA {
             throw new Error('Token pair not supported');
         }
 
+        const isFromUsdt = ["USDT", "USD₮0"].includes(fromToken.symbol);
+        const isToUsdt = ["USDT", "USD₮0"].includes(toToken.symbol);
+
+        const pushQuoteService = (_service: Service) => {
+            const serviceStatus = getRouteStatus(_service, disabledServices);
+            if (serviceStatus.disabled) {
+                return;
+            }
+            const quoteParams = formatQuoteParams(_service);
+            quoteServices.push({
+                service: _service,
+                quote: () => {
+                    return ServiceMap[_service].quote(quoteParams);
+                },
+            });
+        };
+
         const quoteServices: any = [];
         for (const serviceType of Object.values(Service)) {
             if (
                 fromToken.services.includes(serviceType)
                 && toToken.services.includes(serviceType)
             ) {
-                const quoteParams = formatQuoteParams(serviceType);
-                quoteServices.push({
-                    service: serviceType,
-                    quote: () => {
-                        return ServiceMap[serviceType].quote(quoteParams);
-                    },
-                });
+                pushQuoteService(serviceType);
             }
+        }
+
+        // If fromToken is usdt0 and toToken is usdc, Usdt0OneClick mode can be used
+        if (
+            fromToken.services.includes(Service.Usdt0)
+            && toToken.services.includes(Service.OneClick)
+            && fromToken.chainName !== "Arbitrum"
+        ) {
+            if (isFromUsdt && isToUsdt) {
+                if (toToken.chainName !== "Arbitrum") {
+                    pushQuoteService(Service.Usdt0OneClick);
+                }
+            } else {
+                pushQuoteService(Service.Usdt0OneClick);
+            }
+        }
+
+        // OneClickUsdt0 mode
+        if (
+            fromToken.services.includes(Service.OneClick)
+            && toToken.services.includes(Service.Usdt0)
+            && toToken.chainName !== "Arbitrum"
+        ) {
+            if (isFromUsdt && isToUsdt) {
+                if (fromToken.chainName !== "Arbitrum") {
+                    pushQuoteService(Service.OneClickUsdt0);
+                }
+            } else {
+                pushQuoteService(Service.OneClickUsdt0);
+            }
+        }
+
+        // FraxZeroOneClick mode
+        if (
+            fromToken.services.includes(Service.FraxZero)
+            && toToken.services.includes(Service.OneClick)
+        ) {
+            pushQuoteService(Service.FraxZeroOneClick);
+        }
+
+        // OneClickFraxZero mode
+        if (
+            fromToken.services.includes(Service.OneClick)
+            && toToken.services.includes(Service.FraxZero)
+        ) {
+            pushQuoteService(Service.OneClickFraxZero);
         }
 
         if (params.singleService) {
@@ -307,7 +432,7 @@ export class SFA {
      * @throws Error if the service type is invalid or if the transaction fails
      */
     public static async send(
-        serviceType: ServiceType,
+        serviceType: Service,
         params: {
             wallet: any;
             quote: any;
@@ -346,13 +471,8 @@ export class SFA {
         const txhash = await service.send(sendParams);
 
         try {
-            const projectMap = {
-                [Service.OneClick]: "nearintents",
-                [Service.Usdt0]: "layerzero",
-                [Service.CCTP]: "cctp",
-            };
             const reportParams: any = {
-                project: projectMap[serviceType] as any,
+                project: ServiceBackend[serviceType] as any,
                 address: params.quote?.quoteParam?.refundTo,
                 receive_address: params.quote?.quoteParam?.recipient,
                 amount: Big(params.quote?.quoteParam?.amountWei || 0).div(10 ** (params.quote?.fromToken?.decimals || 6)).toFixed(params.quote?.fromToken?.decimals || 6, 0),
@@ -387,7 +507,7 @@ export class SFA {
      * @throws Error if the service type is invalid or if the status query fails
      */
     public static async getStatus(
-        serviceType: ServiceType,
+        serviceType: Service,
         params: {
             depositAddress?: string;
             hash?: string;

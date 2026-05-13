@@ -3,15 +3,40 @@ import Big from "big.js";
 import { getPrice } from "../utils/price";
 import { numberRemoveEndZero } from "../utils/number";
 import { SendType } from "../core/Send";
-import { Service, type ServiceType } from "../core/Service";
-import { getRpcUrls } from "./config/rpcs";
+import { Service } from "../core/Service";
+import { getChainRpcUrl } from "./config/rpcs";
+import { Csl } from "../utils/log";
+import { OpenAPI } from "../core/OpenAPI";
+import { ExecTime } from "../utils/exec-time";
+import { actionCreators } from "@near-js/transactions";
+
+const createFunctionCallAction = (
+  methodName: string,
+  args: Record<string, any>,
+  gas: string,
+  deposit: string
+) => {
+  return actionCreators.functionCall(
+    methodName,
+    args,
+    BigInt(gas),
+    BigInt(deposit)
+  );
+}
 
 export default class NearWallet {
   private selector: any;
   private rpcUrl: string;
+  private csl;
+
   constructor(_selector: any) {
     this.selector = _selector;
-    this.rpcUrl = getRpcUrls("near")[0];
+    // https://rpc.mainnet.near.org
+    // https://nearinner.deltarpc.com
+    this.rpcUrl = getChainRpcUrl("near").rpcUrl;
+
+    const cs = new Csl(OpenAPI.DEBUG);
+    this.csl = cs.log;
   }
 
   private async query(contractId: string, methodName: string, args: any = {}) {
@@ -58,37 +83,31 @@ export default class NearWallet {
       transactions.push({
         receiverId: data.originAsset,
         actions: [
-          {
-            type: "FunctionCall",
-            params: {
-              methodName: "storage_deposit",
-              args: {
-                account_id: data.depositAddress,
-                registration_only: true
-              },
-              gas: "15000000000000",
-              deposit: "1250000000000000000000"
-            }
-          }
+          createFunctionCallAction(
+            "storage_deposit",
+            {
+              account_id: data.depositAddress,
+              registration_only: true
+            },
+            "15000000000000",
+            "1250000000000000000000"
+          )
         ]
       });
     }
     transactions.push({
       receiverId: data.originAsset,
       actions: [
-        {
-          type: "FunctionCall" as const,
-          params: {
-            methodName: "ft_transfer",
-            args: {
-              receiver_id: data.depositAddress,
-              amount: data.amount,
-              memo: null
-            },
-            gas: "30000000000000",
-            deposit: "1"
-          }
-        }
+        createFunctionCallAction(
+          "ft_transfer",
+          {
+            receiver_id: data.depositAddress,
+            amount: data.amount,
+            memo: null
+          },
+          "30000000000000",
+          "1"
+        )
       ]
     });
 
@@ -104,18 +123,28 @@ export default class NearWallet {
     return "";
   }
 
-  async getBalance(token: any, _account: string) {
+  async getBalance(token: any, _account: string, options?: { isCatchError?: boolean; }) {
+    const { isCatchError = false } = options || {};
+
     if (token.symbol === "near" || token.symbol === "NEAR" || token.symbol === "native") {
-      return this.getNearBalance(_account);
+      return this.getNearBalance(_account, options);
     }
-    const balance = await this.query(token.contractAddress, "ft_balance_of", {
-      account_id: _account
-    });
-    return balance || "0";
+    try {
+      const balance = await this.query(token.contractAddress, "ft_balance_of", {
+        account_id: _account
+      });
+      return balance || "0";
+    } catch (error) {
+      this.csl("Near getTokenBalance", "red-500", "Get token balance failed: %o", error);
+      if (isCatchError) {
+        throw error;
+      }
+      return "0";
+    }
   }
 
-  async balanceOf(token: any, account: string) {
-    return await this.getBalance(token, account);
+  async balanceOf(token: any, account: string, options?: { isCatchError?: boolean; }) {
+    return await this.getBalance(token, account, options);
   }
 
   /**
@@ -123,7 +152,9 @@ export default class NearWallet {
    * @param account Account ID
    * @returns NEAR balance in yoctoNEAR (smallest unit)
    */
-  async getNearBalance(account: string): Promise<string> {
+  async getNearBalance(account: string, options?: { isCatchError?: boolean; }): Promise<string> {
+    const { isCatchError = false } = options || {};
+
     try {
       const response = await fetch(this.rpcUrl, {
         method: "POST",
@@ -145,6 +176,9 @@ export default class NearWallet {
       return result.result?.amount || "0";
     } catch (error) {
       console.error("Failed to get NEAR balance:", error);
+      if (isCatchError) {
+        throw error;
+      }
       return "0";
     }
   }
@@ -155,7 +189,7 @@ export default class NearWallet {
    * @returns Gas limit estimate, gas price, and estimated gas cost
    */
   async estimateTransferGas(data: {
-    originAsset: string;
+    fromToken: any;
     depositAddress: string;
     amount: string;
   }): Promise<{
@@ -163,7 +197,8 @@ export default class NearWallet {
     gasPrice: bigint;
     estimateGas: bigint;
   }> {
-    const { originAsset, depositAddress } = data;
+    const { fromToken, depositAddress } = data;
+    const originAsset = fromToken.contractAddress;
 
     // Check if storage deposit is needed
     const checkStorage = await this.query(
@@ -201,6 +236,82 @@ export default class NearWallet {
     };
   }
 
+  async getEstimateGas(params: any) {
+    const { gasLimit, price, nativeToken, gasPrice } = params;
+
+    let finalGasPrice = gasPrice;
+    if (!finalGasPrice) {
+      try {
+        const gasPriceResponse = await fetch(this.rpcUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: "dontcare",
+            method: "gas_price",
+            params: {}
+          })
+        });
+        const gasPriceJson = await gasPriceResponse.json();
+        finalGasPrice = BigInt(gasPriceJson.result.gas_price);
+      } catch {
+        finalGasPrice = BigInt("100000000");
+      }
+    }
+
+    const estimateGas = BigInt(gasLimit) * BigInt(finalGasPrice);
+    const estimateGasAmount = Big(estimateGas.toString()).div(10 ** nativeToken.decimals);
+    const estimateGasUsd = Big(estimateGasAmount).times(price || 1);
+
+    return {
+      gasPrice: finalGasPrice,
+      usd: numberRemoveEndZero(Big(estimateGasUsd).toFixed(20)),
+      wei: estimateGas,
+      amount: numberRemoveEndZero(Big(estimateGasAmount).toFixed(nativeToken.decimals)),
+    };
+  }
+
+  async estimateTransaction(params: any) {
+    const {
+      dry,
+      transactions,
+      fromToken,
+      prices,
+    } = params;
+
+    const nativeTokenPrice = getPrice(prices, fromToken.nativeToken.symbol);
+
+    let totalGasLimit = BigInt("50000000000000"); // ft_transfer_call gas
+    for (let i = 1; i < transactions.length; i++) {
+      totalGasLimit += BigInt("15000000000000");
+    }
+    // Add 20% buffer
+    totalGasLimit = (totalGasLimit * 120n) / 100n;
+
+    const result = {
+      estimateSourceGasLimit: totalGasLimit,
+      estimateSourceGas: 0n,
+      estimateSourceGasUsd: "0",
+    };
+
+    const setDefaultGasLimit = async () => {
+      const { usd, wei } = await this.getEstimateGas({
+        gasLimit: totalGasLimit,
+        price: nativeTokenPrice,
+        nativeToken: fromToken.nativeToken,
+        gasPrice: dry ? "100000000" : void 0,
+      });
+      result.estimateSourceGas = wei;
+      result.estimateSourceGasUsd = usd;
+    };
+
+    await setDefaultGasLimit();
+
+    return result;
+  }
+
   async checkTransactionStatus(txHash: string) {
     const wallet = await this.selector.wallet();
     const accounts = await wallet.getAccounts();
@@ -224,15 +335,16 @@ export default class NearWallet {
         })
       });
       const txStatus = await response.json();
-      console.log("fetch rpc success: %o", txStatus);
-      console.log("fetch rpc status success: %o", typeof txStatus.result?.status?.SuccessValue !== "undefined");
+      this.csl("Near checkTransactionStatus", "green-400", "fetch rpc success: %o", txStatus);
+      this.csl("Near checkTransactionStatus", "green-400", "fetch rpc status success: %o", typeof txStatus.result?.status?.SuccessValue !== "undefined");
     } catch (error) {
-      console.log("fetch rpc failed: %o", error);
+      this.csl("Near checkTransactionStatus", "red-500", "fetch rpc failed: %o", error);
     }
   }
 
   async quoteOneClickProxy(params: any) {
     const {
+      dry,
       proxyAddress,
       fromToken,
       refundTo,
@@ -240,6 +352,8 @@ export default class NearWallet {
       amountWei,
       prices,
     } = params;
+
+    const execTime = new ExecTime({ type: "OneClick NEAR", logStyle: "lime-200", isDebug: OpenAPI.DEBUG });
 
     const result: any = { fees: {} };
 
@@ -264,59 +378,57 @@ export default class NearWallet {
       const transactions: any[] = [];
 
       // Check if depositAddress (intents address) is registered
-      const checkStorageDepositAddress = await this.query(
-        tokenContract,
-        "storage_balance_of",
-        {
-          account_id: depositAddress
-        }
-      );
+      // Check if stableflowstg.near is registered
+      execTime.breakpoint();
+      const mergedCalls = [
+        this.query(
+          tokenContract,
+          "storage_balance_of",
+          {
+            account_id: depositAddress
+          }
+        ),
+        this.query(
+          tokenContract,
+          "storage_balance_of",
+          {
+            account_id: STABLEFLOW_CONTRACT
+          }
+        )
+      ];
+      const [checkStorageDepositAddress, checkStorageStableflow] = await Promise.all(mergedCalls);
+      execTime.log("query storage_balance_of (depositAddress and STABLEFLOW_CONTRACT)");
 
       if (!checkStorageDepositAddress?.available) {
         transactions.push({
           receiverId: tokenContract,
           actions: [
-            {
-              type: "FunctionCall",
-              params: {
-                methodName: "storage_deposit",
-                args: {
-                  account_id: depositAddress,
-                  registration_only: true
-                },
-                gas: "15000000000000",
-                deposit: "1250000000000000000000"
-              }
-            }
+            createFunctionCallAction(
+              "storage_deposit",
+              {
+                account_id: depositAddress,
+                registration_only: true
+              },
+              "15000000000000",
+              "1250000000000000000000"
+            )
           ]
         });
       }
-
-      // Check if stableflowstg.near is registered
-      const checkStorageStableflow = await this.query(
-        tokenContract,
-        "storage_balance_of",
-        {
-          account_id: STABLEFLOW_CONTRACT
-        }
-      );
 
       if (!checkStorageStableflow?.available) {
         transactions.push({
           receiverId: tokenContract,
           actions: [
-            {
-              type: "FunctionCall",
-              params: {
-                methodName: "storage_deposit",
-                args: {
-                  account_id: STABLEFLOW_CONTRACT,
-                  registration_only: true
-                },
-                gas: "15000000000000",
-                deposit: "1250000000000000000000"
-              }
-            }
+            createFunctionCallAction(
+              "storage_deposit",
+              {
+                account_id: STABLEFLOW_CONTRACT,
+                registration_only: true
+              },
+              "15000000000000",
+              "1250000000000000000000"
+            )
           ]
         });
       }
@@ -325,46 +437,32 @@ export default class NearWallet {
       transactions.push({
         receiverId: tokenContract,
         actions: [
-          {
-            type: "FunctionCall" as const,
-            params: {
-              methodName: "ft_transfer_call",
-              args: {
-                receiver_id: STABLEFLOW_CONTRACT,
-                amount: amountWei,
-                msg: depositAddress
-              },
-              gas: "50000000000000", // ft_transfer_call requires more gas
-              deposit: "1"
-            }
-          }
+          createFunctionCallAction(
+            "ft_transfer_call",
+            {
+              receiver_id: STABLEFLOW_CONTRACT,
+              amount: amountWei,
+              msg: depositAddress
+            },
+            "50000000000000", // ft_transfer_call requires more gas
+            "1"
+          )
         ]
       });
 
-      // Calculate gas fees
-      let totalGasLimit = BigInt("50000000000000"); // ft_transfer_call gas
-      if (!checkStorageDepositAddress?.available) {
-        totalGasLimit += BigInt("15000000000000"); // storage_deposit gas
-      }
-      if (!checkStorageStableflow?.available) {
-        totalGasLimit += BigInt("15000000000000"); // storage_deposit gas
-      }
+      execTime.breakpoint();
+      const ett = await this.estimateTransaction({
+        dry,
+        transactions,
+        fromToken,
+        prices,
+      });
+      execTime.log("estimateTransaction");
 
-      // Add 20% buffer
-      totalGasLimit = (totalGasLimit * 120n) / 100n;
-
-      // NEAR gas price: 100000000 yoctoNEAR per gas unit
-      const gasPrice = BigInt("100000000");
-      const estimateGas = totalGasLimit * gasPrice;
-
-      // Calculate USD fees
-      const estimateGasUsd = Big(estimateGas.toString())
-        .div(10 ** fromToken.nativeToken.decimals)
-        .times(getPrice(prices, fromToken.nativeToken.symbol));
-
-      result.fees.sourceGasFeeUsd = numberRemoveEndZero(Big(estimateGasUsd).toFixed(20));
-      result.estimateSourceGas = estimateGas.toString();
-      result.estimateSourceGasUsd = numberRemoveEndZero(Big(estimateGasUsd).toFixed(20));
+      result.fees.estimateGasUsd = ett.estimateSourceGasUsd;
+      result.estimateSourceGas = ett.estimateSourceGas;
+      result.totalEstimateSourceGas = ett.estimateSourceGas;
+      result.estimateSourceGasUsd = ett.estimateSourceGasUsd;
 
       // Set sendParam for subsequent transaction sending
       result.sendParam = {
@@ -373,20 +471,22 @@ export default class NearWallet {
       };
 
     } catch (error) {
-      console.log("oneclick quote proxy failed: %o", error);
+      this.csl("Near quoteOneClickProxy", "red-500", "oneclick quote proxy failed: %o", error);
       // Use default gas estimation
-      const defaultGasLimit = BigInt("80000000000000"); // default gas limit
-      const gasPrice = BigInt("100000000");
-      const estimateGas = defaultGasLimit * gasPrice;
-      const estimateGasUsd = Big(estimateGas.toString())
-        .div(10 ** fromToken.nativeToken.decimals)
-        .times(getPrice(prices, fromToken.nativeToken.symbol));
+      const ett = await this.estimateTransaction({
+        dry,
+        transactions: [null, null, null],
+        fromToken,
+        prices,
+      });
 
-      result.fees.sourceGasFeeUsd = numberRemoveEndZero(Big(estimateGasUsd).toFixed(20));
-      result.estimateSourceGas = estimateGas.toString();
-      result.estimateSourceGasUsd = numberRemoveEndZero(Big(estimateGasUsd).toFixed(20));
+      result.fees.estimateGasUsd = ett.estimateSourceGasUsd;
+      result.estimateSourceGas = ett.estimateSourceGas;
+      result.totalEstimateSourceGas = ett.estimateSourceGas;
+      result.estimateSourceGasUsd = ett.estimateSourceGasUsd;
     }
 
+    execTime.logTotal("quoteOneClickProxy");
     return result;
   }
 
@@ -412,10 +512,10 @@ export default class NearWallet {
 
   /**
    * Unified quote method that routes to specific quote methods based on type
-   * @param type Service type from ServiceType
+   * @param type Service type from Service
    * @param params Parameters for the quote
    */
-  async quote(type: ServiceType, params: any) {
+  async quote(type: Service, params: any) {
     switch (type) {
       case Service.OneClick:
         return await this.quoteOneClickProxy(params);
