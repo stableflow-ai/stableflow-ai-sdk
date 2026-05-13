@@ -1,14 +1,13 @@
 import { ethers } from 'ethers';
 import { request as __request } from '../core/request';
 import { usdcChains } from '../wallets/config/usdc';
-import { getRpcUrls } from '../wallets/config/rpcs';
+import { getChainRpcUrl } from '../wallets/config/rpcs';
 import { ServiceMap } from '../bridges';
 import { Service } from '../core/Service';
 import { WalletConfig } from '../models/Wallet';
 import { TokenConfig } from '../models/Token';
 import { formatQuoteError } from '../utils/error';
 import { tokens } from '../wallets/config/tokens';
-import EVMWallet from '../wallets/evm';
 import { OpenAPI } from '../core/OpenAPI';
 import Big from 'big.js';
 
@@ -140,7 +139,7 @@ class HyperliquidService {
     const name = DESTINATION_TOKEN.name;
     const chainId = DESTINATION_TOKEN.chainId;
 
-    const provider = new ethers.JsonRpcProvider(getRpcUrls("arb")[0]);
+    const provider = new ethers.JsonRpcProvider(getChainRpcUrl("arb").rpcUrl);
     const erc20 = new ethers.Contract(
       tokenAddress,
       [
@@ -180,7 +179,7 @@ class HyperliquidService {
       deadline
     };
 
-    const signature = await evmWallet.signTypedData({
+    const signature = await (evmWallet as any).signTypedData({
       domain,
       types,
       values
@@ -230,7 +229,7 @@ export interface HyperliquidTransferParams {
   // bridge wallet
   wallet: WalletConfig;
   // deposit wallet (evm wallet)
-  evmWallet: EVMWallet;
+  evmWallet: WalletConfig;
   // deposit wallet address
   evmWalletAddress: string;
   // quote result with deposit address
@@ -239,7 +238,7 @@ export interface HyperliquidTransferParams {
 
 export interface HyperliquidGeneratePermitParams {
   address: string;
-  evmWallet: EVMWallet;
+  evmWallet: WalletConfig;
   amountWei: string;
 }
 
