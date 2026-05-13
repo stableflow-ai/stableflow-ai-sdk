@@ -64,45 +64,42 @@ export class NativeService {
         401: `Unauthorized - JWT token is invalid`,
       },
     });
-    console.log("response: %o", response)
-    execTime.log("Native API");
+    execTime.log("Native API, response: %o", response);
 
-    // if (res.status !== 200 || !res.data?.success) {
-    //   let errorMessage = res.data?.message || "Native quote failed";
-    //   // requested amount smaller than token in minimum wei [18446744073709551615]
-    //   if (errorMessage.includes("requested amount smaller than token in minimum wei")) {
-    //     const match = errorMessage.match(/\[(\d+)\]/);
-    //     if (match) {
-    //       const minWei = match[1];
-    //       const minAmount = Big(minWei).div(10 ** fromToken.decimals);
-    //       errorMessage = `Amount is too low, at least ${formatNumber(minAmount, fromToken.decimals, true)} ${fromToken.symbol}`;
-    //     }
-    //   }
-    //   if (errorMessage.includes("requested amount smaller than token out minimum wei")) {
-    //     const match = errorMessage.match(/\[(\d+)\]/);
-    //     if (match) {
-    //       const minWei = match[1];
-    //       const minAmount = Big(minWei).div(10 ** toToken.decimals);
-    //       errorMessage = `Amount is too low. A minimum of ${formatNumber(minAmount, toToken.decimals, true)} ${toToken.symbol} must be output.`;
-    //     }
-    //   }
-    //   throw new Error(errorMessage);
-    // }
+    if (!response?.success) {
+      let errorMessage = response?.message || "Native quote failed";
+      // requested amount smaller than token in minimum wei [18446744073709551615]
+      if (errorMessage.includes("requested amount smaller than token in minimum wei")) {
+        const match = errorMessage.match(/\[(\d+)\]/);
+        if (match) {
+          const minWei = match[1];
+          const minAmount = Big(minWei).div(10 ** fromToken.decimals);
+          errorMessage = `Amount is too low, at least ${formatNumber(minAmount, fromToken.decimals, true)} ${fromToken.symbol}`;
+        }
+      }
+      if (errorMessage.includes("requested amount smaller than token out minimum wei")) {
+        const match = errorMessage.match(/\[(\d+)\]/);
+        if (match) {
+          const minWei = match[1];
+          const minAmount = Big(minWei).div(10 ** toToken.decimals);
+          errorMessage = `Amount is too low. A minimum of ${formatNumber(minAmount, toToken.decimals, true)} ${toToken.symbol} must be output.`;
+        }
+      }
+      throw new Error(errorMessage);
+    }
 
-    // execTime.breakpoint();
-    // const result = await wallet.quote(Service.Native, {
-    //   ...params,
-    //   ...quoteParams,
-    //   quoteResponse: response,
-    //   bridgeRouterAddress: isSwap ? NativeV4Routes[fromToken.chainName].swap : NativeV4Routes[fromToken.chainName].bridge,
-    // });
-    // execTime.log("wallet.quoteNative");
+    execTime.breakpoint();
+    const result = await wallet.quote(Service.Native, {
+      ...params,
+      ...quoteParams,
+      quoteResponse: response,
+      bridgeRouterAddress: isSwap ? NativeV4Routes[fromToken.chainName].swap : NativeV4Routes[fromToken.chainName].bridge,
+    });
+    execTime.log("wallet.quoteNative");
 
-    // execTime.logTotal("NativeService.quote");
+    execTime.logTotal("NativeService.quote");
 
-    // return result;
-
-    return {};
+    return result;
   }
 
   public async estimateTransaction(params: any, quoteData: any) {
