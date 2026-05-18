@@ -1,7 +1,7 @@
 {
   "name": "stableflow-ai-sdk",
-  "version": "2.3.1",
-  "description": "TypeScript SDK for StableFlow AI API - Cross-chain token swap solution",
+  "version": "3.0.0",
+  "description": "[DEPRECATED] Use @stableflow/* instead. This package is a compatibility shell and will not be maintained.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -12,19 +12,16 @@
       "import": "./dist/index.mjs"
     }
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "scripts", "README.md", "LICENSE"],
   "engines": {
     "node": ">=16"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build": "tsup",
     "clean": "rm -rf dist node_modules",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "prepublishOnly": "npm run build",
+    "dev": "tsup --watch",
+    "postinstall": "node scripts/postinstall.js",
+    "prepublishOnly": "pnpm run build",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "repository": {
@@ -52,8 +49,21 @@
   ],
   "author": "StableFlow AI",
   "license": "MIT",
+  "dependencies": {
+    "@stableflow/bridges": "latest",
+    "@stableflow/core": "latest",
+    "@stableflow/hyperliquid": "latest",
+    "@stableflow/utils-evm": "latest",
+    "@stableflow/utils-solana": "latest",
+    "@stableflow/wallet-aptos": "latest",
+    "@stableflow/wallet-evm": "latest",
+    "@stableflow/wallet-near": "latest",
+    "@stableflow/wallet-solana": "latest",
+    "@stableflow/wallet-sui": "latest",
+    "@stableflow/wallet-ton": "latest",
+    "@stableflow/wallet-tron": "latest"
+  },
   "devDependencies": {
-    "@types/big.js": "^6.2.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   },

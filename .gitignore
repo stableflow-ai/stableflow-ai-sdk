@@ -13,4 +13,8 @@ dist/
 
 # Internal documentation
 PUBLISH.md
+package-lock.json
+pnpm-lock.yaml
+wrangler.toml
+.wrangler/
 
