@@ -117,7 +117,7 @@ class HyperliquidService {
   public async getStatus(params: HyperliquidGetStatusParams): Promise<HyperliquidDepositStatusResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/v0/deposit",
+      url: "/v0/deposit/status",
       query: {
         depositId: params.depositId,
       },
